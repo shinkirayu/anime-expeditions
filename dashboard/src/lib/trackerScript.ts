@@ -30,8 +30,12 @@ local CONFIG = {
 	-- share it, anyone with it can post data that gets attributed to you.
 	Endpoint = "__INGEST_ENDPOINT__",
 
-	-- Minimum seconds between outbound reports even if data keeps changing.
-	FlushInterval = 2.0,
+	-- Minimum seconds between checking for changes.
+	FlushInterval = 20.0,
+
+	-- Even with nothing changed, send a heartbeat this often so the dashboard
+	-- doesn't show you as offline while you're actually still in-game.
+	HeartbeatInterval = 60.0,
 
 	-- Verbose discovery / diff logging.
 	Debug = true,
@@ -457,16 +461,19 @@ end
 --// Change engine: diff, debounce, flush
 --// ---------------------------------------------------------------------------
 local Engine = {}
-Engine._lastFlush = 0
+Engine._lastCheck = 0
+Engine._lastSend = 0
 
-function Engine.evaluate()
+-- `force` sends even when nothing changed — used for the periodic heartbeat
+-- so last_seen keeps getting touched while you're online but idle.
+function Engine.evaluate(force)
 	local fresh = Tracker.build()
-	if Util.deepEqual(fresh, Tracker.Snapshot) then
+	if not force and Util.deepEqual(fresh, Tracker.Snapshot) then
 		return
 	end
 	Tracker.Snapshot = Util.deepCopy(fresh)
 	if Transport.send(fresh) then
-		Engine._lastFlush = os.clock()
+		Engine._lastSend = os.clock()
 	end
 end
 

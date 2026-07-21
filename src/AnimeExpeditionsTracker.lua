@@ -28,8 +28,12 @@ local CONFIG = {
 	-- endpoint — do not share it, anyone with it can post data attributed to you.
 	Endpoint = "https://odohvvxgyqjibkxxsnty.supabase.co/functions/v1/ingest?key=47fec71393db41f6b93b25d706d415ce44d0b0e549db42ff8d806a917fe05112",
 
-	-- Minimum seconds between outbound reports even if data keeps changing.
-	FlushInterval = 2.0,
+	-- Minimum seconds between checking for changes.
+	FlushInterval = 20.0,
+
+	-- Even with nothing changed, send a heartbeat this often so the dashboard
+	-- doesn't show you as offline while you're actually still in-game.
+	HeartbeatInterval = 60.0,
 
 	-- Verbose discovery / diff logging.
 	Debug = true,
@@ -455,16 +459,19 @@ end
 --// Change engine: diff, debounce, flush
 --// ---------------------------------------------------------------------------
 local Engine = {}
-Engine._lastFlush = 0
+Engine._lastCheck = 0
+Engine._lastSend = 0
 
-function Engine.evaluate()
+-- `force` sends even when nothing changed — used for the periodic heartbeat
+-- so last_seen keeps getting touched while you're online but idle.
+function Engine.evaluate(force)
 	local fresh = Tracker.build()
-	if Util.deepEqual(fresh, Tracker.Snapshot) then
+	if not force and Util.deepEqual(fresh, Tracker.Snapshot) then
 		return
 	end
 	Tracker.Snapshot = Util.deepCopy(fresh)
 	if Transport.send(fresh) then
-		Engine._lastFlush = os.clock()
+		Engine._lastSend = os.clock()
 	end
 end
 
@@ -503,8 +510,10 @@ local function main()
 
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
-		if (now - Engine._lastFlush) >= CONFIG.FlushInterval then
-			Engine.evaluate()
+		if (now - Engine._lastCheck) >= CONFIG.FlushInterval then
+			Engine._lastCheck = now
+			local heartbeatDue = (now - Engine._lastSend) >= CONFIG.HeartbeatInterval
+			Engine.evaluate(heartbeatDue)
 		end
 	end)
 
