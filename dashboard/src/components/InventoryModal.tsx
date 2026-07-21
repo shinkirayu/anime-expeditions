@@ -71,7 +71,7 @@ export function InventoryModal({
                   <span className={`truncate ${rarityClass(r.rarity)}`}>
                     {r.key === "__gems" && "💎 "}
                     {r.name}
-                    {r.subType && r.key !== "__gems" && (
+                    {r.subType && (
                       <span className="ml-2 text-[10px] text-zinc-400">{r.subType}</span>
                     )}
                   </span>

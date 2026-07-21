@@ -206,7 +206,7 @@ export default function AccountPage() {
                   <span className={`truncate ${rarityClass(item.Rarity)}`}>
                     {name === "__gems" && "💎 "}
                     {item.DisplayName || name}
-                    {item.SubType && name !== "__gems" && (
+                    {item.SubType && (
                       <span className="ml-2 text-[10px] text-zinc-400">{item.SubType}</span>
                     )}
                   </span>

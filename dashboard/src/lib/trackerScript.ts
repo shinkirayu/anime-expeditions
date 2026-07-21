@@ -464,7 +464,7 @@ local Engine = {}
 Engine._lastCheck = 0
 Engine._lastSend = 0
 
--- `force` sends even when nothing changed — used for the periodic heartbeat
+-- 'force' sends even when nothing changed — used for the periodic heartbeat
 -- so last_seen keeps getting touched while you're online but idle.
 function Engine.evaluate(force)
 	local fresh = Tracker.build()
@@ -512,8 +512,10 @@ local function main()
 
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
-		if (now - Engine._lastFlush) >= CONFIG.FlushInterval then
-			Engine.evaluate()
+		if (now - Engine._lastCheck) >= CONFIG.FlushInterval then
+			Engine._lastCheck = now
+			local heartbeatDue = (now - Engine._lastSend) >= CONFIG.HeartbeatInterval
+			Engine.evaluate(heartbeatDue)
 		end
 	end)
 
