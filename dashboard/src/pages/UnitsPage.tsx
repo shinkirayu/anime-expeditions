@@ -19,7 +19,7 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
 export default function UnitsPage() {
   const { data: units, isLoading, isError } = useAllUnits();
   const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<SortMode>("count");
+  const [sort, setSort] = useState<SortMode>("rarity");
   const [selected, setSelected] = useState<AggregatedUnit | null>(null);
 
   const filtered = useMemo(() => {

@@ -48,14 +48,17 @@ export default function AccountPage() {
   const traitCrystal = useMemo(() => getCurrencyEntry(account?.currencies, "trait crystal"), [account]);
 
   // Currencies (Gems, Trait Crystal, ...) shown pinned at the top of the
-  // inventory list instead of a separate currency section.
+  // inventory list instead of a separate currency section. Pinned currencies
+  // are also reported as regular inventory server-side now, so skip any
+  // inventory entry whose key is already shown as a currency.
   const inventory = useMemo(() => {
+    const currencyNames = new Set(Object.keys(account?.currencies ?? {}));
     const currencies = Object.entries(account?.currencies ?? {}).map(
       ([name, c]) => [`currency:${name}`, { ...c, SubType: "Currency" }] as const,
     );
-    const items = Object.entries(details.data?.inventory ?? {}).sort(
-      ([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0),
-    );
+    const items = Object.entries(details.data?.inventory ?? {})
+      .filter(([name]) => !currencyNames.has(name))
+      .sort(([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0));
     return [...currencies, ...items] as [
       string,
       { DisplayName?: string; Amount: number; SubType?: string; Rarity?: string; Icon?: string },

@@ -316,6 +316,11 @@ function Trackers.currencies(itemData)
 	return out
 end
 
+-- Pinned currencies (Gems, Trait Crystal, ...) are ALSO counted as regular
+-- inventory here, not excluded — they used to be filtered out via
+-- isPinnedCurrency(), but that check depends on StaticInfo.Items having
+-- loaded successfully, and any inconsistency there (e.g. multiple tracker
+-- instances from different sessions) made item_count flicker.
 function Trackers.inventory(itemData)
 	local out = {}
 	if typeof(itemData) ~= "table" then
@@ -323,15 +328,13 @@ function Trackers.inventory(itemData)
 	end
 	for name, entry in pairs(itemData) do
 		local def = StaticInfo.Items and StaticInfo.Items[name]
-		if not isPinnedCurrency(name, def) then
-			out[name] = {
-				Amount = typeof(entry) == "table" and entry.Amount or entry,
-				DisplayName = def and def.DisplayName or name,
-				SubType = def and def.SubType,
-				Rarity = def and def.Rarity,
-				Icon = def and def.Icon,
-			}
-		end
+		out[name] = {
+			Amount = typeof(entry) == "table" and entry.Amount or entry,
+			DisplayName = def and def.DisplayName or name,
+			SubType = def and def.SubType,
+			Rarity = def and def.Rarity,
+			Icon = def and def.Icon,
+		}
 	end
 	return out
 end

@@ -20,8 +20,12 @@ export function InventoryModal({
   }, [onClose]);
 
   // Currencies (Gems, Trait Crystal, ...) shown pinned at the top instead of
-  // a separate section, followed by the regular inventory items.
+  // a separate section, followed by the regular inventory items. Pinned
+  // currencies are also reported as regular inventory server-side now (so
+  // item_count is never dependent on that classification succeeding), so
+  // skip any inventory entry whose key is already shown as a currency.
   const tiles = useMemo(() => {
+    const currencyNames = new Set(Object.keys(account.currencies ?? {}));
     const currencies = Object.entries(account.currencies ?? {}).map(([name, c]) => ({
       key: `currency:${name}`,
       name: c.DisplayName || name,
@@ -30,6 +34,7 @@ export function InventoryModal({
       icon: c.Icon,
     }));
     const items = Object.entries(details.data?.inventory ?? {})
+      .filter(([name]) => !currencyNames.has(name))
       .sort(([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0))
       .map(([name, item]) => ({
         key: `item:${name}`,
