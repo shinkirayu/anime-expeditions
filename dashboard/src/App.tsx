@@ -13,6 +13,7 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SetupPage = lazy(() => import("./pages/SetupPage"));
+const UnitsPage = lazy(() => import("./pages/UnitsPage"));
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,12 @@ function Shell({ children }: { children: React.ReactNode }) {
           <span className="text-indigo-600 dark:text-indigo-400">AE</span> Dashboard
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            to="/units"
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          >
+            Units
+          </Link>
           <Link
             to="/setup"
             className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
@@ -65,6 +72,7 @@ function Gate() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/account/:userId" element={<AccountPage />} />
+          <Route path="/units" element={<UnitsPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="*" element={<DashboardPage />} />
         </Routes>

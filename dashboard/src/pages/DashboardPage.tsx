@@ -3,7 +3,8 @@ import { useAccounts, useDashboardStats } from "../hooks/useAccounts";
 import { useAccountsRealtime } from "../hooks/useAccountsRealtime";
 import { useDebounce } from "../hooks/useDebounce";
 import type { AccountFilters } from "../lib/types";
-import { AccountCard } from "../components/AccountCard";
+import { AccountRow } from "../components/AccountRow";
+import { InventoryModal } from "../components/InventoryModal";
 import { FilterBar } from "../components/FilterBar";
 import { StatTiles } from "../components/StatTiles";
 import { SkeletonGrid, SkeletonTiles } from "../components/Skeletons";
@@ -30,6 +31,12 @@ export default function DashboardPage() {
   const accounts = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
   const visibleIds = useMemo(() => accounts.map((a) => a.user_id), [accounts]);
   useAccountsRealtime(effectiveFilters, visibleIds);
+
+  const [inventoryFor, setInventoryFor] = useState<number | null>(null);
+  const inventoryAccount = useMemo(
+    () => accounts.find((a) => a.user_id === inventoryFor) ?? null,
+    [accounts, inventoryFor],
+  );
 
   // Infinite scroll sentinel.
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -85,10 +92,25 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {accounts.map((a) => (
-              <AccountCard key={a.user_id} account={a} />
-            ))}
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+                  <th className="py-2 pl-3 pr-2 font-medium">Account</th>
+                  <th className="px-2 py-2 text-right font-medium">Level</th>
+                  <th className="px-2 py-2 text-right font-medium">Gems</th>
+                  <th className="px-2 py-2 text-right font-medium">Units</th>
+                  <th className="px-2 py-2 text-right font-medium">Items</th>
+                  <th className="px-2 py-2 text-right font-medium">Last seen</th>
+                  <th className="py-2 pr-3 pl-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((a) => (
+                  <AccountRow key={a.user_id} account={a} onShowInventory={setInventoryFor} />
+                ))}
+              </tbody>
+            </table>
           </div>
           <div ref={sentinelRef} className="h-1" />
           {isFetchingNextPage && <SkeletonGrid count={3} />}
@@ -99,6 +121,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <BarChart title="Level distribution (loaded accounts)" data={levelDistribution} />
         </div>
+      )}
+
+      {inventoryAccount && (
+        <InventoryModal account={inventoryAccount} onClose={() => setInventoryFor(null)} />
       )}
     </div>
   );

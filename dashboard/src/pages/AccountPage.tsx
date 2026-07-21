@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useAccountRealtime } from "../hooks/useAccountsRealtime";
 import { isOnline, type UnitEntry } from "../lib/types";
-import { fmtFullNum, fmtNum, fmtPlaytime, rarityClass, timeAgo } from "../lib/format";
+import { fmtFullNum, fmtNum, fmtPlaytime, getGemsAmount, rarityClass, timeAgo } from "../lib/format";
 import { BarChart } from "../components/BarChart";
 
 const UNIT_PAGE = 60;
@@ -42,13 +42,18 @@ export default function AccountPage() {
     );
   }, [details.data]);
 
-  const inventory = useMemo(
-    () =>
-      Object.entries(details.data?.inventory ?? {}).sort(
-        ([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0),
-      ),
-    [details.data],
-  );
+  const gems = useMemo(() => getGemsAmount(account?.currencies), [account]);
+
+  // Gems shown as the first inventory row instead of a separate currency section.
+  const inventory = useMemo(() => {
+    const items = Object.entries(details.data?.inventory ?? {}).sort(
+      ([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0),
+    );
+    return [["__gems", { DisplayName: "Gems", Amount: gems, SubType: "Currency" }], ...items] as [
+      string,
+      { DisplayName?: string; Amount: number; SubType?: string; Rarity?: string },
+    ][];
+  }, [details.data, gems]);
 
   if (isLoading) {
     return <div className="animate-pulse rounded-xl bg-zinc-100 p-16 dark:bg-zinc-900" />;
@@ -105,7 +110,8 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <Tile label="Gems" value={`💎 ${fmtFullNum(gems)}`} />
           <Tile label="Units" value={fmtFullNum(account.unit_count)} />
           <Tile label="Items" value={fmtFullNum(account.item_count)} />
           <Tile
@@ -115,27 +121,6 @@ export default function AccountPage() {
           <Tile label="Playtime" value={fmtPlaytime(Number.isFinite(playtime) ? playtime : null)} />
         </div>
       </div>
-
-      {/* Currencies */}
-      <Section title="Currencies">
-        {Object.keys(account.currencies ?? {}).length === 0 ? (
-          <Empty>No currency data yet.</Empty>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {Object.entries(account.currencies).map(([name, c]) => (
-              <div
-                key={name}
-                className="rounded-lg border border-zinc-200 p-3 text-center dark:border-zinc-800"
-              >
-                <div className={`truncate text-xs ${rarityClass(c.Rarity)}`}>
-                  {c.DisplayName || name}
-                </div>
-                <div className="mt-0.5 text-lg font-bold tabular-nums">{fmtFullNum(c.Amount)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
 
       {/* Live match state */}
       {account.in_match && account.progress?.LiveState != null && (
@@ -219,8 +204,9 @@ export default function AccountPage() {
                   className="cv-auto flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-sm dark:bg-zinc-800/60"
                 >
                   <span className={`truncate ${rarityClass(item.Rarity)}`}>
+                    {name === "__gems" && "💎 "}
                     {item.DisplayName || name}
-                    {item.SubType && (
+                    {item.SubType && name !== "__gems" && (
                       <span className="ml-2 text-[10px] text-zinc-400">{item.SubType}</span>
                     )}
                   </span>

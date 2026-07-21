@@ -40,3 +40,12 @@ export const RARITY_COLORS: Record<string, string> = {
 export function rarityClass(rarity: string | undefined): string {
   return (rarity && RARITY_COLORS[rarity]) || "text-zinc-600 dark:text-zinc-300";
 }
+
+/** Gems is the game's one real currency; pull it out of the currencies bag by name. */
+export function getGemsAmount(currencies: Record<string, { Amount: number }> | null | undefined): number {
+  if (!currencies) return 0;
+  for (const [name, entry] of Object.entries(currencies)) {
+    if (name.toLowerCase().includes("gem")) return entry.Amount ?? 0;
+  }
+  return 0;
+}
