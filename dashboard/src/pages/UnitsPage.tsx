@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAllUnits, type AggregatedUnit } from "../hooks/useAllUnits";
-import { rarityClass } from "../lib/format";
-import { SearchIcon } from "../components/icons";
+import { rarityCardBg, rarityClass } from "../lib/format";
+import { SearchIcon, SwordIcon } from "../components/icons";
 import { Dropdown } from "../components/Dropdown";
+import { CloseButton } from "../components/CloseButton";
 
 const RARITY_ORDER = ["Secret", "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"];
 
@@ -79,11 +80,11 @@ export default function UnitsPage() {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
           {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
-              className="h-[104px] animate-pulse rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]"
+              className="aspect-square animate-pulse rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]"
             />
           ))}
         </div>
@@ -92,19 +93,25 @@ export default function UnitsPage() {
           No units yet.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
           {filtered.map((u) => (
             <button
               key={u.key}
               onClick={() => setSelected(u)}
-              className="cv-auto flex flex-col items-start gap-1 rounded-2xl border border-zinc-200/80 bg-white p-3.5 text-left shadow-sm transition-all hover:border-fuchsia-300 hover:shadow-[0_0_16px_rgba(129,19,255,0.25)] dark:border-fuchsia-500/10 dark:bg-white/[0.03] dark:hover:border-fuchsia-500/40"
+              className={`relative flex aspect-square flex-col items-center justify-between overflow-hidden rounded-xl border-2 bg-gradient-to-b p-1.5 text-left shadow-sm transition-transform hover:scale-[1.05] hover:shadow-[0_0_12px_rgba(129,19,255,0.35)] ${rarityCardBg(u.rarity)}`}
             >
-              <span className="font-display w-full truncate text-sm font-semibold">{u.displayName}</span>
-              <span className={`text-xs font-medium ${rarityClass(u.rarity)}`}>{u.rarity ?? "Unknown"}</span>
-              {u.element && <span className="text-xs text-zinc-400">{u.element}</span>}
-              <span className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                {u.owners.length} {u.owners.length === 1 ? "account" : "accounts"}
+              <span className="font-display self-start rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none font-bold text-white">
+                {u.owners.length}
               </span>
+              <SwordIcon className="size-5 text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
+              <div className="w-full text-center">
+                <div className="font-display text-outline truncate text-[11px] font-semibold">
+                  {u.displayName}
+                </div>
+                <div className="truncate text-[8px] font-semibold text-white/85">
+                  {u.rarity ?? "Unknown"}
+                </div>
+              </div>
             </button>
           ))}
         </div>
@@ -129,12 +136,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
               {unit.rarity ?? "Unknown"} · {unit.owners.length} accounts
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          >
-            ✕
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3">
           {unit.owners.map((o) => (

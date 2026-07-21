@@ -53,7 +53,7 @@ export const AccountRow = memo(function AccountRow({
       <td className="px-3 py-2.5 text-center align-middle">
         <button
           onClick={() => onShowUnits(account.user_id)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 transition-colors hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-fuchsia-500/30 dark:hover:bg-fuchsia-500/10"
+          className="font-display inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-500/10 to-purple-700/10 px-3 py-1 text-xs font-semibold tabular-nums text-fuchsia-700 transition-all hover:from-fuchsia-500/25 hover:to-purple-700/25 hover:shadow-[0_0_10px_rgba(129,19,255,0.4)] dark:border-fuchsia-500/30 dark:text-fuchsia-300"
         >
           {account.unit_count} <SwordIcon />
         </button>
@@ -61,7 +61,7 @@ export const AccountRow = memo(function AccountRow({
       <td className="px-3 py-2.5 text-center align-middle">
         <button
           onClick={() => onShowInventory(account.user_id)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 transition-colors hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-fuchsia-500/30 dark:hover:bg-fuchsia-500/10"
+          className="font-display inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-500/10 to-purple-700/10 px-3 py-1 text-xs font-semibold tabular-nums text-fuchsia-700 transition-all hover:from-fuchsia-500/25 hover:to-purple-700/25 hover:shadow-[0_0_10px_rgba(129,19,255,0.4)] dark:border-fuchsia-500/30 dark:text-fuchsia-300"
         >
           {account.item_count} <BackpackIcon />
         </button>
