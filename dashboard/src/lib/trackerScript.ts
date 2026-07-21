@@ -392,19 +392,22 @@ end
 --// ---------------------------------------------------------------------------
 local Transport = {}
 
-local function resolveHttpRequest()
-	local candidates = {
-		rawget(getfenv and getfenv() or _G, "http_request"),
-		(syn and syn.request),
-		(http and http.request),
-		rawget(_G, "request"),
-	}
-	for _, fn in ipairs(candidates) do
+-- Return every executor HTTP function that actually exists, in preference
+-- order. We used to stop at the first non-nil candidate and give up if that
+-- one threw; some executors expose more than one of these and only some
+-- actually work, so now every candidate gets tried before falling through.
+local function resolveHttpRequestCandidates()
+	local list = {}
+	local function add(name, fn)
 		if typeof(fn) == "function" then
-			return fn
+			table.insert(list, { name = name, fn = fn })
 		end
 	end
-	return nil
+	add("http_request", rawget(getfenv and getfenv() or _G, "http_request"))
+	add("syn.request", syn and syn.request)
+	add("http.request", http and http.request)
+	add("request", rawget(_G, "request"))
+	return list
 end
 
 function Transport.send(payload)
@@ -421,10 +424,9 @@ function Transport.send(payload)
 		return true
 	end
 
-	local requestFn = resolveHttpRequest()
-	if requestFn then
-		local ok = pcall(function()
-			requestFn({
+	for _, candidate in ipairs(resolveHttpRequestCandidates()) do
+		local ok, err = pcall(function()
+			candidate.fn({
 				Url = CONFIG.Endpoint,
 				Method = "POST",
 				Headers = { ["Content-Type"] = "application/json" },
@@ -432,18 +434,20 @@ function Transport.send(payload)
 			})
 		end)
 		if ok then
-			Log.info("sent", #body, "bytes via executor HTTP")
+			Log.info("sent", #body, "bytes via", candidate.name)
 			return true
 		end
+		Log.warn(candidate.name .. " failed:", tostring(err))
 	end
 
-	local ok = pcall(function()
+	local ok, err = pcall(function()
 		HttpService:PostAsync(CONFIG.Endpoint, body, Enum.HttpContentType.ApplicationJson)
 	end)
 	if ok then
 		Log.info("sent", #body, "bytes via HttpService")
 		return true
 	end
+	Log.warn("HttpService:PostAsync failed:", tostring(err))
 
 	Log.warn("all transport methods failed")
 	return false
