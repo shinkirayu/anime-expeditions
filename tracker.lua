@@ -458,9 +458,17 @@ end
 --// (rather than granular per-field signal wiring) is enough to catch changes.
 --// ---------------------------------------------------------------------------
 local function main()
-	if not LocalPlayer then
-		Log.warn("no LocalPlayer; this must run on the client")
-		return
+	if not game:IsLoaded() then
+		Log.info("waiting for the game to finish loading...")
+		game.Loaded:Wait()
+	end
+
+	while not LocalPlayer do
+		LocalPlayer = Players.LocalPlayer
+		if not LocalPlayer then
+			Log.info("waiting for LocalPlayer...")
+			Players.PlayerAdded:Wait()
+		end
 	end
 
 	Log.info("starting for", LocalPlayer.Name, "(" .. tostring(LocalPlayer.UserId) .. ")")
@@ -486,7 +494,7 @@ local function main()
 	Log.info("running (polling every " .. CONFIG.FlushInterval .. "s)")
 end
 
-main()
+task.spawn(main)
 
 --// Expose the module surface for external drivers / debugging consoles.
 return {
