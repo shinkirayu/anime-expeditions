@@ -49,3 +49,34 @@ export function getGemsAmount(currencies: Record<string, { Amount: number }> | n
   }
   return 0;
 }
+
+const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+/** "Act 1" -> "I", "Act 2" -> "II", etc. Falls back to the raw name if not "Act N". */
+function actToRoman(actName: string | undefined): string | undefined {
+  if (!actName) return undefined;
+  const n = Number(actName.match(/\d+/)?.[0]);
+  if (!n || n < 1 || n > ROMAN_NUMERALS.length) return actName;
+  return ROMAN_NUMERALS[n - 1];
+}
+
+interface ProgressLike {
+  InMatch?: boolean;
+  Match?: { MapName?: string; ActName?: string; Wave?: number; MaxWave?: number } | null;
+}
+
+/**
+ * "Lobby" when not in a match; otherwise the actual stage, e.g. "SchoolGrounds I".
+ * The game's "Act N" within a map is the stage variant players call "Map I/II/III".
+ */
+export function getLocationLabel(progress: ProgressLike | null | undefined): string {
+  if (!progress?.InMatch) return "Lobby";
+  const m = progress.Match;
+  if (!m) return "In Match";
+  const roman = actToRoman(m.ActName);
+  const place = m.MapName ? (roman ? `${m.MapName} ${roman}` : m.MapName) : m.ActName || "In Match";
+  if (m.Wave != null && m.MaxWave != null) {
+    return `${place} · Wave ${m.Wave}/${m.MaxWave}`;
+  }
+  return place;
+}

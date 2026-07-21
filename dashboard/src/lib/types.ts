@@ -6,9 +6,20 @@ export interface CurrencyEntry {
   Rarity?: string;
 }
 
+export interface MatchInfo {
+  MapName?: string;
+  ActName?: string;
+  Difficulty?: string;
+  Gamemode?: string;
+  CurrentGameState?: string;
+  Wave?: number;
+  MaxWave?: number;
+  SessionTime?: number;
+}
+
 export interface ProgressInfo {
   InMatch?: boolean;
-  LiveState?: Record<string, unknown> | null;
+  Match?: MatchInfo | null;
   CompletedMapsCount?: number;
   CompletedMaps?: string[];
 }
@@ -24,12 +35,12 @@ export interface AccountListRow {
   unit_count: number;
   item_count: number;
   in_match: boolean;
+  progress: ProgressInfo;
   last_seen: string;
 }
 
 /** Full light row, fetched on the detail page. */
 export interface AccountRow extends AccountListRow {
-  progress: ProgressInfo;
   stats: Record<string, unknown>;
   first_seen: string;
   updated_at: string;
@@ -85,7 +96,7 @@ export interface AccountFilters {
 
 /** Column list for the account grid — never SELECT * on the hot path. */
 export const ACCOUNT_LIST_COLUMNS =
-  "user_id,username,display_name,level,exp,currencies,unit_count,item_count,in_match,last_seen";
+  "user_id,username,display_name,level,exp,currencies,unit_count,item_count,in_match,progress,last_seen";
 
 export const PAGE_SIZE = 30;
 

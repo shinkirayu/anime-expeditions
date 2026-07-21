@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { supabase } from "./lib/supabase";
@@ -15,36 +15,52 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SetupPage = lazy(() => import("./pages/SetupPage"));
 const UnitsPage = lazy(() => import("./pages/UnitsPage"));
 
+function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <NavLink
+      to={to}
+      end={to === "/"}
+      className={({ isActive }) =>
+        `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        }`
+      }
+    >
+      {children}
+    </NavLink>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-      <header className="mb-6 flex items-center justify-between">
-        <Link to="/" className="text-lg font-bold tracking-tight">
-          <span className="text-indigo-600 dark:text-indigo-400">AE</span> Dashboard
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/units"
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-          >
-            Units
+    <div className="min-h-dvh">
+      <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-white/80 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/80">
+        <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 py-3 sm:px-6">
+          <Link to="/" className="mr-2 flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+              AE
+            </span>
+            <span className="hidden text-sm font-semibold tracking-tight sm:inline">Dashboard</span>
           </Link>
-          <Link
-            to="/setup"
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-          >
-            Get script
-          </Link>
-          <ThemeToggle />
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-          >
-            Sign out
-          </button>
+          <nav className="flex items-center gap-1">
+            <NavItem to="/">Accounts</NavItem>
+            <NavItem to="/units">Units</NavItem>
+            <NavItem to="/setup">Get script</NavItem>
+          </nav>
+          <div className="ml-auto flex items-center gap-1.5">
+            <ThemeToggle />
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
-      {children}
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">{children}</main>
     </div>
   );
 }

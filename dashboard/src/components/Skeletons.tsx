@@ -29,11 +29,11 @@ export function SkeletonGrid({ count = 9 }: { count?: number }) {
 
 export function SkeletonTiles() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {[0, 1, 2, 3].map((i) => (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-20 animate-pulse rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          className="h-[68px] animate-pulse rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         />
       ))}
     </div>

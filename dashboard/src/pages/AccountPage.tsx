@@ -74,13 +74,13 @@ export default function AccountPage() {
   const playtime = Number(stats["Playtime"] ?? stats["PlayTime"] ?? stats["TimePlayed"]);
 
   return (
-    <div className="space-y-5">
-      <Link to="/" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+    <div className="space-y-6">
+      <Link to="/" className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
         ← All accounts
       </Link>
 
       {/* Header */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex size-14 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
             {account.username.slice(0, 2).toUpperCase()}
@@ -123,11 +123,21 @@ export default function AccountPage() {
       </div>
 
       {/* Live match state */}
-      {account.in_match && account.progress?.LiveState != null && (
+      {account.in_match && account.progress?.Match && (
         <Section title="Live match state">
-          <pre className="max-h-64 overflow-auto rounded-lg bg-zinc-50 p-3 text-xs dark:bg-zinc-800/60">
-            {JSON.stringify(account.progress.LiveState, null, 2)}
-          </pre>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Tile label="Map" value={account.progress.Match.MapName ?? "—"} />
+            <Tile label="Act" value={account.progress.Match.ActName ?? "—"} />
+            <Tile label="Difficulty" value={account.progress.Match.Difficulty ?? "—"} />
+            <Tile
+              label="Wave"
+              value={
+                account.progress.Match.Wave != null && account.progress.Match.MaxWave != null
+                  ? `${account.progress.Match.Wave}/${account.progress.Match.MaxWave}`
+                  : "—"
+              }
+            />
+          </div>
         </Section>
       )}
 
@@ -259,7 +269,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {right}

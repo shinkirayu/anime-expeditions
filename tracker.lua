@@ -26,10 +26,11 @@ local CONFIG = {
 	-- Verbose discovery / diff logging.
 	Debug = true,
 
-	-- Replica tokens (Madwork ReplicaService class tokens) that hold live
+	-- Replica token (Madwork ReplicaService class token) that holds live
 	-- "currently in a stage/expedition" state. Only present while a match
-	-- is actually running; absent while in the lobby.
-	LiveStageTokens = { "GameZone", "GameState", "MapData" },
+	-- is actually running; absent while in the lobby. (MapData also exists
+	-- but only holds waypoint/path geometry — huge and useless for tracking.)
+	LiveStageTokens = { "GameState" },
 
 	-- How long to wait at startup for the PlayerData replica to arrive.
 	InitialDataTimeout = 15,
@@ -195,24 +196,30 @@ end
 --// display names / rarity / currency classification. All optional: if the
 --// game restructures these, trackers below fall back to raw values.
 --// ---------------------------------------------------------------------------
+-- Loaded via StaticInfo.load(), called from main() AFTER the game finishes
+-- loading — NOT at file-load time. These modules can take a while to
+-- replicate; requiring them too early silently leaves StaticInfo empty for
+-- the rest of the session (nothing gets classified as a currency, no rarity
+-- enrichment) with no retry, since it only ever runs once.
 local StaticInfo = {}
-do
-	local function tryRequire(...)
-		local parts = { ... }
-		local ok, mod = pcall(function()
-			local cur = ReplicatedStorage
-			for _, part in ipairs(parts) do
-				cur = cur:WaitForChild(part, 5)
-			end
-			return require(cur)
-		end)
-		if ok then
-			return mod
-		end
-		Log.missing("static info: " .. table.concat(parts, "/"))
-		return nil
-	end
 
+local function tryRequire(...)
+	local parts = { ... }
+	local ok, mod = pcall(function()
+		local cur = ReplicatedStorage
+		for _, part in ipairs(parts) do
+			cur = cur:WaitForChild(part, 15)
+		end
+		return require(cur)
+	end)
+	if ok then
+		return mod
+	end
+	Log.missing("static info: " .. table.concat(parts, "/"))
+	return nil
+end
+
+function StaticInfo.load()
 	StaticInfo.Items = tryRequire("Shared", "Information", "Items")
 	StaticInfo.Units = tryRequire("Shared", "Information", "Units")
 	local levelMod = tryRequire("Shared", "Information", "PlayerLevelInfo")
@@ -324,6 +331,32 @@ end
 
 -- "Stage" progress: historical completed maps plus, when a match is actually
 -- running, whatever live zone/state replica the server created for it.
+-- Pull just the compact, useful fields out of the GameState replica (its
+-- Parameters table has the map/act/difficulty; the sibling MapData replica
+-- holds full waypoint path geometry and is deliberately never read here).
+local function extractMatch(gameStateData)
+	if typeof(gameStateData) ~= "table" then
+		return nil
+	end
+	local params = gameStateData.Parameters
+	if typeof(params) ~= "table" or not params.MapName then
+		-- Parameters can be transiently empty between wave/session resets.
+		-- Report "not in a match" rather than a half-empty placeholder that
+		-- would otherwise flicker on and off the real map/stage value.
+		return nil
+	end
+	return {
+		MapName = params.MapName,
+		ActName = params.ActName,
+		Difficulty = params.Difficulty,
+		Gamemode = params.Gamemode,
+		CurrentGameState = gameStateData.CurrentGameState,
+		Wave = gameStateData.Wave,
+		MaxWave = gameStateData.MaxWave,
+		SessionTime = gameStateData.SessionTime,
+	}
+end
+
 function Trackers.progress(data)
 	local completed = {}
 	if typeof(data.CompletedMaps) == "table" then
@@ -332,16 +365,12 @@ function Trackers.progress(data)
 		end
 	end
 
-	local live = {}
-	local inMatch = false
-	for token, replica in pairs(ReplicaSource.LiveTokenReplicas) do
-		live[token] = Util.deepJsonSafe(replica.Data)
-		inMatch = true
-	end
+	local gameStateReplica = ReplicaSource.LiveTokenReplicas["GameState"]
+	local match = gameStateReplica and extractMatch(gameStateReplica.Data)
 
 	return {
-		InMatch = inMatch,
-		LiveState = inMatch and live or nil,
+		InMatch = match ~= nil,
+		Match = match,
 		CompletedMapsCount = #completed,
 		CompletedMaps = completed,
 	}
@@ -484,6 +513,8 @@ local function main()
 	end
 
 	Log.info("starting for", LocalPlayer.Name, "(" .. tostring(LocalPlayer.UserId) .. ")")
+
+	StaticInfo.load()
 
 	local RC = ReplicaSource.init()
 	if not RC then
