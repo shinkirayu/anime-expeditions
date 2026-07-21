@@ -7,11 +7,40 @@
 }
 
 body {
-  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-[#0d0a14] dark:text-zinc-100;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Cheap virtualization: off-screen cards skip layout/paint entirely. */
 .cv-auto {
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
+}
+
+/*
+ * In-game UI reference (Anime Expeditions' own menus): bold rounded "Fredoka"
+ * headings in white with a black outline, gradient pink/purple panels, dark
+ * backdrop. Recreated here with fonts + CSS gradients — not the game's own
+ * texture/border art assets, which stay in the game.
+ */
+.font-display {
+  font-family: "Fredoka", ui-rounded, sans-serif;
+}
+
+.text-outline {
+  color: #fff;
+  text-shadow:
+    -1.5px -1.5px 0 #000,
+    1.5px -1.5px 0 #000,
+    -1.5px 1.5px 0 #000,
+    1.5px 1.5px 0 #000,
+    0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.gradient-purple {
+  background-image: linear-gradient(180deg, #eb53ff 0%, #8113ff 100%);
+}
+
+.gradient-cyan {
+  background-image: linear-gradient(180deg, #1cffff 0%, #0099ff 100%);
 }

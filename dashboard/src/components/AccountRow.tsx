@@ -2,8 +2,9 @@ import { memo } from "react";
 import { Link } from "react-router-dom";
 import type { AccountListRow } from "../lib/types";
 import { isOnline } from "../lib/types";
-import { fmtNum, getGemsAmount, getLocationLabel, timeAgo } from "../lib/format";
+import { fmtNum, getCurrencyEntry, getLocationLabel, timeAgo } from "../lib/format";
 import { BackpackIcon, SwordIcon } from "./icons";
+import { AssetImage } from "./AssetImage";
 
 /** Memoized so a realtime patch to one row never re-renders the whole table. */
 export const AccountRow = memo(function AccountRow({
@@ -16,11 +17,12 @@ export const AccountRow = memo(function AccountRow({
   onShowUnits: (userId: number) => void;
 }) {
   const online = isOnline(account.last_seen);
-  const gems = getGemsAmount(account.currencies);
+  const gems = getCurrencyEntry(account.currencies, "gem");
+  const traitCrystal = getCurrencyEntry(account.currencies, "trait crystal");
   const location = getLocationLabel(account.progress);
 
   return (
-    <tr className="cv-auto border-b border-zinc-100 align-middle last:border-0 hover:bg-zinc-50 dark:border-zinc-800/60 dark:hover:bg-zinc-900/60">
+    <tr className="cv-auto border-b border-zinc-100 align-middle last:border-0 hover:bg-zinc-50 dark:border-white/[0.04] dark:hover:bg-white/[0.03]">
       <td className="py-2.5 pr-3 pl-4 align-middle">
         <Link to={`/account/${account.user_id}`} className="group flex min-w-0 items-center gap-2.5">
           <span
@@ -28,7 +30,7 @@ export const AccountRow = memo(function AccountRow({
             title={online ? "Online" : "Offline"}
           />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+            <div className="truncate text-sm font-semibold group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400">
               {account.display_name || account.username}
             </div>
             <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">@{account.username}</div>
@@ -37,12 +39,21 @@ export const AccountRow = memo(function AccountRow({
       </td>
       <td className="px-3 py-2.5 text-center align-middle tabular-nums">{account.level ?? "—"}</td>
       <td className="px-3 py-2.5 text-center align-middle tabular-nums">
-        💎 {fmtNum(gems)}
+        <span className="inline-flex items-center gap-1">
+          <AssetImage rbxAssetId={gems?.Icon} alt="Gems" fallback="💎" />
+          {fmtNum(gems?.Amount)}
+        </span>
+      </td>
+      <td className="px-3 py-2.5 text-center align-middle tabular-nums">
+        <span className="inline-flex items-center gap-1">
+          <AssetImage rbxAssetId={traitCrystal?.Icon} alt="Trait Crystal" fallback="🔮" />
+          {fmtNum(traitCrystal?.Amount ?? 0)}
+        </span>
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <button
           onClick={() => onShowUnits(account.user_id)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 transition-colors hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-fuchsia-500/30 dark:hover:bg-fuchsia-500/10"
         >
           {account.unit_count} <SwordIcon />
         </button>
@@ -50,7 +61,7 @@ export const AccountRow = memo(function AccountRow({
       <td className="px-3 py-2.5 text-center align-middle">
         <button
           onClick={() => onShowInventory(account.user_id)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium tabular-nums text-zinc-600 transition-colors hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-fuchsia-500/30 dark:hover:bg-fuchsia-500/10"
         >
           {account.item_count} <BackpackIcon />
         </button>

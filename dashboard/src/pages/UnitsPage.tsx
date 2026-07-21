@@ -3,10 +3,17 @@ import { Link } from "react-router-dom";
 import { useAllUnits, type AggregatedUnit } from "../hooks/useAllUnits";
 import { rarityClass } from "../lib/format";
 import { SearchIcon } from "../components/icons";
+import { Dropdown } from "../components/Dropdown";
 
 const RARITY_ORDER = ["Secret", "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"];
 
 type SortMode = "count" | "rarity" | "name";
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "count", label: "Most owned" },
+  { value: "rarity", label: "Rarity" },
+  { value: "name", label: "Name" },
+];
 
 export default function UnitsPage() {
   const { data: units, isLoading, isError } = useAllUnits();
@@ -37,13 +44,13 @@ export default function UnitsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-bold tracking-tight">Units</h1>
+        <h1 className="font-display text-lg font-semibold tracking-tight">Units</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Every unit across all of your tracked accounts. Click one to see who has it.
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:flex-row sm:items-center dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:flex-row sm:items-center dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
         <div className="relative w-full sm:max-w-xs">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
           <input
@@ -51,19 +58,18 @@ export default function UnitsPage() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter units…"
-            className="w-full rounded-lg border border-zinc-200 bg-transparent py-2 pr-3 pl-9 text-sm outline-none focus:border-indigo-500 dark:border-zinc-700"
+            className="w-full rounded-lg border border-zinc-200 bg-transparent py-2 pr-3 pl-9 text-sm outline-none focus:border-fuchsia-400 dark:border-zinc-700"
           />
         </div>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortMode)}
-          aria-label="Sort units"
-          className="rounded-lg border border-zinc-200 bg-transparent px-2.5 py-1.5 text-xs font-medium sm:ml-auto dark:border-zinc-700"
-        >
-          <option value="count">Sort: Most owned</option>
-          <option value="rarity">Sort: Rarity</option>
-          <option value="name">Sort: Name</option>
-        </select>
+        <div className="sm:ml-auto">
+          <Dropdown<SortMode>
+            value={sort}
+            options={SORT_OPTIONS}
+            onChange={setSort}
+            label="Sort"
+            ariaLabel="Sort units"
+          />
+        </div>
       </div>
 
       {isError && (
@@ -77,12 +83,12 @@ export default function UnitsPage() {
           {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
-              className="h-[104px] animate-pulse rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+              className="h-[104px] animate-pulse rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]"
             />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700">
+        <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-fuchsia-500/15">
           No units yet.
         </div>
       ) : (
@@ -91,9 +97,9 @@ export default function UnitsPage() {
             <button
               key={u.key}
               onClick={() => setSelected(u)}
-              className="cv-auto flex flex-col items-start gap-1 rounded-2xl border border-zinc-200/80 bg-white p-3.5 text-left shadow-sm transition-colors hover:border-indigo-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-700"
+              className="cv-auto flex flex-col items-start gap-1 rounded-2xl border border-zinc-200/80 bg-white p-3.5 text-left shadow-sm transition-all hover:border-fuchsia-300 hover:shadow-[0_0_16px_rgba(129,19,255,0.25)] dark:border-fuchsia-500/10 dark:bg-white/[0.03] dark:hover:border-fuchsia-500/40"
             >
-              <span className="w-full truncate text-sm font-semibold">{u.displayName}</span>
+              <span className="font-display w-full truncate text-sm font-semibold">{u.displayName}</span>
               <span className={`text-xs font-medium ${rarityClass(u.rarity)}`}>{u.rarity ?? "Unknown"}</span>
               {u.element && <span className="text-xs text-zinc-400">{u.element}</span>}
               <span className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
@@ -113,12 +119,12 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+        className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-fuchsia-500/15 dark:bg-[#150f22]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-fuchsia-500/10">
           <div>
-            <h2 className="font-semibold">{unit.displayName}</h2>
+            <h2 className="font-display font-semibold">{unit.displayName}</h2>
             <p className={`text-xs font-medium ${rarityClass(unit.rarity)}`}>
               {unit.rarity ?? "Unknown"} · {unit.owners.length} accounts
             </p>
@@ -135,7 +141,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
             <Link
               key={o.UniqueId}
               to={`/account/${o.user_id}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm hover:border-indigo-400 dark:border-zinc-800 dark:bg-zinc-800/60 dark:hover:border-indigo-500"
+              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm transition-colors hover:border-fuchsia-400 dark:border-white/5 dark:bg-white/[0.04] dark:hover:border-fuchsia-500/50"
             >
               <span className="truncate font-medium">{o.display_name || o.username}</span>
               <span className="ml-2 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">

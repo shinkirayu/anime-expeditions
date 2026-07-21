@@ -3,8 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useAccountRealtime } from "../hooks/useAccountsRealtime";
 import { isOnline, type UnitEntry } from "../lib/types";
-import { fmtFullNum, fmtNum, fmtPlaytime, getGemsAmount, rarityClass, timeAgo } from "../lib/format";
+import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityClass, timeAgo } from "../lib/format";
 import { BarChart } from "../components/BarChart";
+import { AssetImage } from "../components/AssetImage";
+import { ItemCard } from "../components/ItemCard";
 
 const UNIT_PAGE = 60;
 
@@ -42,18 +44,23 @@ export default function AccountPage() {
     );
   }, [details.data]);
 
-  const gems = useMemo(() => getGemsAmount(account?.currencies), [account]);
+  const gems = useMemo(() => getCurrencyEntry(account?.currencies, "gem"), [account]);
+  const traitCrystal = useMemo(() => getCurrencyEntry(account?.currencies, "trait crystal"), [account]);
 
-  // Gems shown as the first inventory row instead of a separate currency section.
+  // Currencies (Gems, Trait Crystal, ...) shown pinned at the top of the
+  // inventory list instead of a separate currency section.
   const inventory = useMemo(() => {
+    const currencies = Object.entries(account?.currencies ?? {}).map(
+      ([name, c]) => [`currency:${name}`, { ...c, SubType: "Currency" }] as const,
+    );
     const items = Object.entries(details.data?.inventory ?? {}).sort(
       ([, a], [, b]) => (b.Amount ?? 0) - (a.Amount ?? 0),
     );
-    return [["__gems", { DisplayName: "Gems", Amount: gems, SubType: "Currency" }], ...items] as [
+    return [...currencies, ...items] as [
       string,
-      { DisplayName?: string; Amount: number; SubType?: string; Rarity?: string },
+      { DisplayName?: string; Amount: number; SubType?: string; Rarity?: string; Icon?: string },
     ][];
-  }, [details.data, gems]);
+  }, [account, details.data]);
 
   if (isLoading) {
     return <div className="animate-pulse rounded-xl bg-zinc-100 p-16 dark:bg-zinc-900" />;
@@ -75,19 +82,19 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+      <Link to="/" className="text-sm font-medium text-fuchsia-600 hover:underline dark:text-fuchsia-400">
         ← All accounts
       </Link>
 
       {/* Header */}
-      <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex size-14 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+          <div className="gradient-purple flex size-14 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_0_14px_rgba(129,19,255,0.4)]">
             {account.username.slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold">{account.display_name || account.username}</h1>
+              <h1 className="font-display text-xl font-semibold">{account.display_name || account.username}</h1>
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   online
@@ -103,15 +110,26 @@ export default function AccountPage() {
             </p>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold tabular-nums">Lv {account.level ?? "?"}</div>
+            <div className="font-display text-3xl font-semibold tabular-nums">Lv {account.level ?? "?"}</div>
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {fmtFullNum(account.exp)} EXP
             </div>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Tile label="Gems" value={`💎 ${fmtFullNum(gems)}`} />
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+          <Tile
+            label="Gems"
+            value={fmtFullNum(gems?.Amount ?? 0)}
+            icon={<AssetImage rbxAssetId={gems?.Icon} alt="Gems" className="size-5" fallback="💎" />}
+          />
+          <Tile
+            label="Trait Crystal"
+            value={fmtFullNum(traitCrystal?.Amount ?? 0)}
+            icon={
+              <AssetImage rbxAssetId={traitCrystal?.Icon} alt="Trait Crystal" className="size-5" fallback="🔮" />
+            }
+          />
           <Tile label="Units" value={fmtFullNum(account.unit_count)} />
           <Tile label="Items" value={fmtFullNum(account.item_count)} />
           <Tile
@@ -150,7 +168,7 @@ export default function AccountPage() {
             value={unitFilter}
             onChange={(e) => setUnitFilter(e.target.value)}
             placeholder="Filter units…"
-            className="rounded-lg border border-zinc-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-indigo-500 dark:border-zinc-700"
+            className="rounded-lg border border-zinc-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-fuchsia-400 dark:border-zinc-700"
           />
         }
       >
@@ -175,7 +193,7 @@ export default function AccountPage() {
                   {units.slice(0, unitLimit).map((u) => (
                     <tr
                       key={u.UniqueId}
-                      className="cv-auto border-b border-zinc-100 last:border-0 dark:border-zinc-800/60"
+                      className="cv-auto border-b border-zinc-100 last:border-0 dark:border-white/[0.04]"
                     >
                       <td className="py-2 pr-3 font-medium">{u.DisplayName || u.Asset}</td>
                       <td className={`py-2 pr-3 ${rarityClass(u.Rarity)}`}>{u.Rarity ?? "—"}</td>
@@ -190,7 +208,7 @@ export default function AccountPage() {
             {units.length > unitLimit && (
               <button
                 onClick={() => setUnitLimit((n) => n + UNIT_PAGE)}
-                className="mt-3 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="mt-3 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium transition-colors hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-zinc-700 dark:hover:border-fuchsia-500/30 dark:hover:bg-fuchsia-500/10"
               >
                 Show more ({units.length - unitLimit} remaining)
               </button>
@@ -199,44 +217,36 @@ export default function AccountPage() {
         )}
       </Section>
 
-      {/* Inventory + charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Section title={`Inventory (${inventory.length})`}>
-          {details.isLoading ? (
-            <Empty>Loading…</Empty>
-          ) : inventory.length === 0 ? (
-            <Empty>No items.</Empty>
-          ) : (
-            <div className="max-h-96 space-y-1 overflow-y-auto pr-1">
-              {inventory.map(([name, item]) => (
-                <div
-                  key={name}
-                  className="cv-auto flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-sm dark:bg-zinc-800/60"
-                >
-                  <span className={`truncate ${rarityClass(item.Rarity)}`}>
-                    {name === "__gems" && "💎 "}
-                    {item.DisplayName || name}
-                    {item.SubType && (
-                      <span className="ml-2 text-[10px] text-zinc-400">{item.SubType}</span>
-                    )}
-                  </span>
-                  <span className="ml-3 shrink-0 font-semibold tabular-nums">
-                    ×{fmtFullNum(item.Amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
-        <BarChart title="Units by rarity" data={rarityDist} />
-      </div>
+      {/* Inventory */}
+      <Section title={`Inventory (${inventory.length})`}>
+        {details.isLoading ? (
+          <Empty>Loading…</Empty>
+        ) : inventory.length === 0 ? (
+          <Empty>No items.</Empty>
+        ) : (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+            {inventory.map(([name, item]) => (
+              <ItemCard
+                key={name}
+                name={item.DisplayName || name}
+                amount={item.Amount}
+                rarity={item.Rarity}
+                icon={item.Icon}
+                fallback="📦"
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <BarChart title="Units by rarity" data={rarityDist} />
 
       {/* Raw stats */}
       {Object.keys(stats).length > 0 && (
         <Section title="Stats">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(stats).map(([k, v]) => (
-              <div key={k} className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/60">
+              <div key={k} className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-white/[0.04]">
                 <div className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{k}</div>
                 <div className="truncate text-sm font-semibold tabular-nums">
                   {typeof v === "number" ? fmtFullNum(v) : String(v)}
@@ -250,11 +260,14 @@ export default function AccountPage() {
   );
 }
 
-function Tile({ label, value }: { label: string; value: string }) {
+function Tile({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-zinc-50 p-3 text-center dark:bg-zinc-800/60">
-      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{label}</div>
-      <div className="text-lg font-bold tabular-nums">{value}</div>
+    <div className="rounded-lg bg-zinc-50 p-3 text-center dark:bg-white/[0.04]">
+      <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</div>
+      <div className="font-display flex items-center justify-center gap-1.5 text-lg font-semibold tabular-nums">
+        {icon}
+        {value}
+      </div>
     </div>
   );
 }
@@ -269,9 +282,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="font-display text-sm font-semibold">{title}</h2>
         {right}
       </div>
       {children}

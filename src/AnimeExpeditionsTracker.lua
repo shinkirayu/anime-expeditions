@@ -46,6 +46,12 @@ local CONFIG = {
 
 	-- How long to wait at startup for the PlayerData replica to arrive.
 	InitialDataTimeout = 15,
+
+	-- Item asset names (ItemData keys) always reported as currencies even
+	-- though the game's own Items sheet classifies them as SubType "Material"
+	-- (e.g. Trait Crystal / "TraitReroll") — things worth tracking prominently
+	-- alongside real currencies like Gems.
+	PinnedCurrencyItems = { "TraitReroll" },
 }
 
 --// ---------------------------------------------------------------------------
@@ -277,6 +283,18 @@ end
 
 -- ItemData holds both currencies and regular items; the static Items sheet
 -- tags each Asset with SubType == "Currency" for the ones that are currencies.
+local function isPinnedCurrency(name, def)
+	if def and def.SubType == "Currency" then
+		return true
+	end
+	for _, pinned in ipairs(CONFIG.PinnedCurrencyItems) do
+		if name == pinned then
+			return true
+		end
+	end
+	return false
+end
+
 function Trackers.currencies(itemData)
 	local out = {}
 	if typeof(itemData) ~= "table" then
@@ -284,11 +302,12 @@ function Trackers.currencies(itemData)
 	end
 	for name, entry in pairs(itemData) do
 		local def = StaticInfo.Items and StaticInfo.Items[name]
-		if def and def.SubType == "Currency" then
+		if isPinnedCurrency(name, def) then
 			out[name] = {
 				Amount = typeof(entry) == "table" and entry.Amount or entry,
-				DisplayName = def.DisplayName,
-				Rarity = def.Rarity,
+				DisplayName = def and def.DisplayName or name,
+				Rarity = def and def.Rarity,
+				Icon = def and def.Icon,
 			}
 		end
 	end
@@ -302,13 +321,13 @@ function Trackers.inventory(itemData)
 	end
 	for name, entry in pairs(itemData) do
 		local def = StaticInfo.Items and StaticInfo.Items[name]
-		local isCurrency = def and def.SubType == "Currency"
-		if not isCurrency then
+		if not isPinnedCurrency(name, def) then
 			out[name] = {
 				Amount = typeof(entry) == "table" and entry.Amount or entry,
 				DisplayName = def and def.DisplayName or name,
 				SubType = def and def.SubType,
 				Rarity = def and def.Rarity,
+				Icon = def and def.Icon,
 			}
 		end
 	end

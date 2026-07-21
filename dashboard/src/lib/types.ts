@@ -4,6 +4,7 @@ export interface CurrencyEntry {
   Amount: number;
   DisplayName?: string;
   Rarity?: string;
+  Icon?: string;
 }
 
 export interface MatchInfo {
@@ -67,6 +68,7 @@ export interface InventoryEntry {
   DisplayName?: string;
   SubType?: string;
   Rarity?: string;
+  Icon?: string;
 }
 
 /** Heavy 1:1 row — lazily fetched only on the detail page. */

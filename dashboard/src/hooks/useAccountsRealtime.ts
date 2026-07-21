@@ -1,80 +1,36 @@
 import { useEffect } from "react";
-import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
-import type { AccountFilters, AccountListRow, AccountRow } from "../lib/types";
-import { accountsKey } from "./useAccounts";
-
-type Page = { rows: AccountListRow[]; hasMore: boolean };
+import type { AccountRow } from "../lib/types";
 
 /**
- * Subscribe to postgres_changes for ONLY the rows currently on screen.
- * Events patch the query cache in place — zero extra reads per update.
- * The subscription re-arms (debounced) when the visible id set changes,
- * and detaches entirely while the tab is hidden.
+ * Subscribe to changes on `public.accounts`. RLS already scopes every row to
+ * accounts this dashboard user owns, so no extra filter is needed — any event
+ * that reaches the client is guaranteed to be one of theirs. On any
+ * insert/update, invalidate the list + stats queries so they refetch. This is
+ * simpler (and much more reliable) than hand-patching the cache for specific
+ * visible rows, at the cost of one extra read per change instead of zero.
  */
-export function useAccountsRealtime(filters: AccountFilters, visibleIds: number[]) {
+export function useAccountsRealtime() {
   const queryClient = useQueryClient();
-  const idsSignature = visibleIds.slice().sort((a, b) => a - b).join(",");
 
   useEffect(() => {
-    if (!idsSignature) return;
-
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
-    const subscribe = () => {
-      channel = supabase
-        .channel(`accounts-visible`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "accounts",
-            filter: `user_id=in.(${idsSignature})`,
-          },
-          (payload) => {
-            const updated = payload.new as AccountListRow;
-            queryClient.setQueryData<InfiniteData<Page>>(accountsKey(filters), (old) => {
-              if (!old) return old;
-              return {
-                ...old,
-                pages: old.pages.map((page) => ({
-                  ...page,
-                  rows: page.rows.map((r) =>
-                    r.user_id === updated.user_id ? { ...r, ...updated } : r,
-                  ),
-                })),
-              };
-            });
-          },
-        )
-        .subscribe();
-    };
-
-    const teardown = () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-        channel = null;
-      }
-    };
-
-    const onVisibility = () => {
-      if (document.hidden) teardown();
-      else if (!channel) subscribe();
-    };
-
-    // Debounce (re)subscription so rapid scrolling doesn't churn channels.
-    const t = setTimeout(() => {
-      if (!document.hidden) subscribe();
-    }, 500);
-    document.addEventListener("visibilitychange", onVisibility);
+    const channel = supabase
+      .channel("accounts-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "accounts" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["accounts"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        },
+      )
+      .subscribe();
 
     return () => {
-      clearTimeout(t);
-      document.removeEventListener("visibilitychange", onVisibility);
-      teardown();
+      supabase.removeChannel(channel);
     };
-  }, [idsSignature, filters, queryClient]);
+  }, [queryClient]);
 }
 
 /** Single-row subscription for the detail page. */

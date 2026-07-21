@@ -21,10 +21,10 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
       to={to}
       end={to === "/"}
       className={({ isActive }) =>
-        `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+        `font-display rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
           isActive
-            ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            ? "gradient-purple text-white shadow-[0_0_12px_rgba(129,19,255,0.5)]"
+            : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
         }`
       }
     >
@@ -36,13 +36,15 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-white/80 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/80">
-        <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-white/80 backdrop-blur dark:border-fuchsia-500/10 dark:bg-[#0d0a14]/85">
+        <div className="mx-auto flex max-w-7xl items-center gap-1.5 px-4 py-3 sm:px-6">
           <Link to="/" className="mr-2 flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+            <span className="gradient-purple font-display flex size-8 items-center justify-center rounded-xl text-xs font-bold text-white shadow-[0_0_14px_rgba(129,19,255,0.55)]">
               AE
             </span>
-            <span className="hidden text-sm font-semibold tracking-tight sm:inline">Dashboard</span>
+            <span className="font-display hidden text-sm font-semibold tracking-tight sm:inline">
+              Dashboard
+            </span>
           </Link>
           <nav className="flex items-center gap-1">
             <NavItem to="/">Accounts</NavItem>
@@ -53,7 +55,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
             <button
               onClick={() => supabase.auth.signOut()}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+              className="rounded-full px-3.5 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
             >
               Sign out
             </button>

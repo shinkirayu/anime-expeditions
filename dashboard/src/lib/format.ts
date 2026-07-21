@@ -41,13 +41,45 @@ export function rarityClass(rarity: string | undefined): string {
   return (rarity && RARITY_COLORS[rarity]) || "text-zinc-600 dark:text-zinc-300";
 }
 
-/** Gems is the game's one real currency; pull it out of the currencies bag by name. */
-export function getGemsAmount(currencies: Record<string, { Amount: number }> | null | undefined): number {
-  if (!currencies) return 0;
+/** Card-background gradient + border per rarity, for the blocky item tiles. */
+export const RARITY_CARD_BG: Record<string, string> = {
+  Common: "from-zinc-400 to-zinc-600 border-zinc-400/50",
+  Uncommon: "from-green-400 to-green-700 border-green-400/50",
+  Rare: "from-blue-400 to-blue-700 border-blue-400/50",
+  Epic: "from-purple-400 to-purple-800 border-purple-400/50",
+  Legendary: "from-amber-400 to-orange-700 border-amber-400/50",
+  Mythic: "from-rose-400 to-fuchsia-800 border-rose-400/50",
+  Secret: "from-fuchsia-400 to-purple-900 border-fuchsia-400/50",
+};
+
+export function rarityCardBg(rarity: string | undefined): string {
+  return (rarity && RARITY_CARD_BG[rarity]) || "from-zinc-500 to-zinc-700 border-zinc-400/40";
+}
+
+interface CurrencyLike {
+  Amount: number;
+  DisplayName?: string;
+  Icon?: string;
+}
+
+/** Look up a currency entry by key or DisplayName (case-insensitive substring match). */
+export function getCurrencyEntry(
+  currencies: Record<string, CurrencyLike> | null | undefined,
+  term: string,
+): CurrencyLike | undefined {
+  if (!currencies) return undefined;
+  const needle = term.toLowerCase();
   for (const [name, entry] of Object.entries(currencies)) {
-    if (name.toLowerCase().includes("gem")) return entry.Amount ?? 0;
+    if (name.toLowerCase().includes(needle) || (entry.DisplayName ?? "").toLowerCase().includes(needle)) {
+      return entry;
+    }
   }
-  return 0;
+  return undefined;
+}
+
+/** Gems is the game's main currency; pull it out of the currencies bag by name. */
+export function getGemsAmount(currencies: Record<string, CurrencyLike> | null | undefined): number {
+  return getCurrencyEntry(currencies, "gem")?.Amount ?? 0;
 }
 
 const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];

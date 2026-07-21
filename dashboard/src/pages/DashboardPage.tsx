@@ -9,14 +9,13 @@ import { UnitsModal } from "../components/UnitsModal";
 import { FilterBar } from "../components/FilterBar";
 import { StatTiles } from "../components/StatTiles";
 import { SkeletonGrid, SkeletonTiles } from "../components/Skeletons";
-import { BarChart } from "../components/BarChart";
 
 export default function DashboardPage() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 350);
   const [filters, setFilters] = useState<AccountFilters>({
     search: "",
-    sort: "last_seen",
+    sort: "username",
     onlineOnly: false,
     inMatchOnly: false,
   });
@@ -30,8 +29,7 @@ export default function DashboardPage() {
   const stats = useDashboardStats();
 
   const accounts = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
-  const visibleIds = useMemo(() => accounts.map((a) => a.user_id), [accounts]);
-  useAccountsRealtime(effectiveFilters, visibleIds);
+  useAccountsRealtime();
 
   const [inventoryFor, setInventoryFor] = useState<number | null>(null);
   const inventoryAccount = useMemo(
@@ -62,18 +60,6 @@ export default function DashboardPage() {
     return () => io.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const levelDistribution = useMemo(() => {
-    const buckets = new Map<string, number>();
-    for (const a of accounts) {
-      const lvl = a.level ?? 0;
-      const bucket = `${Math.floor(lvl / 10) * 10}–${Math.floor(lvl / 10) * 10 + 9}`;
-      buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
-    }
-    return Array.from(buckets, ([label, value]) => ({ label: `Lv ${label}`, value })).sort(
-      (a, b) => parseInt(a.label.slice(3)) - parseInt(b.label.slice(3)),
-    );
-  }, [accounts]);
-
   return (
     <div className="space-y-6">
       {stats.data ? <StatTiles stats={stats.data} /> : <SkeletonTiles />}
@@ -94,27 +80,29 @@ export default function DashboardPage() {
       {isLoading ? (
         <SkeletonGrid />
       ) : accounts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-zinc-700">
+        <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-fuchsia-500/15">
           No accounts match. Waiting for trackers to report in…
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="overflow-x-auto rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
             <table className="w-full min-w-[640px] table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[24%]" />
-                <col className="w-[8%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[20%]" />
-                <col className="w-[12%]" />
+                <col className="w-[22%]" />
+                <col className="w-[7%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[17%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-zinc-200 text-[11px] tracking-wide text-zinc-400 uppercase dark:border-zinc-800 dark:text-zinc-500">
+                <tr className="border-b border-zinc-200 text-[11px] tracking-wide text-fuchsia-700/70 uppercase dark:border-fuchsia-500/10 dark:text-fuchsia-300/60">
                   <th className="py-3 pr-3 pl-4 font-semibold">Account</th>
                   <th className="px-3 py-3 text-center font-semibold">Level</th>
                   <th className="px-3 py-3 text-center font-semibold">Gems</th>
+                  <th className="px-3 py-3 text-center font-semibold">Trait Crystal</th>
                   <th className="px-3 py-3 text-center font-semibold">Units</th>
                   <th className="px-3 py-3 text-center font-semibold">Items</th>
                   <th className="px-3 py-3 text-center font-semibold">Location</th>
@@ -136,12 +124,6 @@ export default function DashboardPage() {
           <div ref={sentinelRef} className="h-1" />
           {isFetchingNextPage && <SkeletonGrid count={3} />}
         </>
-      )}
-
-      {accounts.length > 3 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <BarChart title="Level distribution (loaded accounts)" data={levelDistribution} />
-        </div>
       )}
 
       {inventoryAccount && (
