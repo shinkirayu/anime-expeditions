@@ -12,6 +12,7 @@ import { SkeletonGrid } from "./components/Skeletons";
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const SetupPage = lazy(() => import("./pages/SetupPage"));
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,12 @@ function Shell({ children }: { children: React.ReactNode }) {
           <span className="text-indigo-600 dark:text-indigo-400">AE</span> Dashboard
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            to="/setup"
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          >
+            Get script
+          </Link>
           <ThemeToggle />
           <button
             onClick={() => supabase.auth.signOut()}
@@ -58,6 +65,7 @@ function Gate() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/account/:userId" element={<AccountPage />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="*" element={<DashboardPage />} />
         </Routes>
       </Suspense>

@@ -5,12 +5,13 @@
 // report, and zero writes when the payload hash is unchanged.
 //
 // Deploy with JWT verification off (the Roblox client can't mint Supabase JWTs;
-// auth is the ?key= shared secret instead):
-//   supabase secrets set INGEST_KEY=<long-random-string>
+// auth is the ?key= per-user tracker token instead, resolved by
+// ingest_snapshot() against public.tracker_tokens):
 //   supabase functions deploy ingest --no-verify-jwt
 //
-// Tracker endpoint:
-//   https://<project-ref>.supabase.co/functions/v1/ingest?key=<INGEST_KEY>
+// Each dashboard user gets their own token from get_or_create_my_tracker_token();
+// their personal tracker endpoint is:
+//   https://<project-ref>.supabase.co/functions/v1/ingest?key=<their-token>
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -20,11 +21,9 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 );
 
-const INGEST_KEY = Deno.env.get("INGEST_KEY") ?? "";
-
 // Tiny in-instance dedupe: if the same worker instance sees the same hash for
-// the same account, skip the DB call entirely. (Best-effort — instances are
-// ephemeral; ingest_snapshot() is the authoritative dedupe.)
+// the same (token, account) pair, skip the DB call entirely. (Best-effort —
+// instances are ephemeral; ingest_snapshot() is the authoritative dedupe.)
 const lastHash = new Map<string, string>();
 
 async function sha1(text: string): Promise<string> {
@@ -37,8 +36,8 @@ Deno.serve(async (req) => {
     return new Response("method not allowed", { status: 405 });
   }
 
-  const key = new URL(req.url).searchParams.get("key") ?? "";
-  if (!INGEST_KEY || key !== INGEST_KEY) {
+  const token = new URL(req.url).searchParams.get("key") ?? "";
+  if (!token) {
     return new Response("unauthorized", { status: 401 });
   }
 
@@ -59,7 +58,7 @@ Deno.serve(async (req) => {
 
   const { CapturedAt: _dropped, ...stable } = payload;
   const hash = await sha1(JSON.stringify(stable));
-  const dedupeKey = String(userId);
+  const dedupeKey = `${token}:${userId}`;
   if (lastHash.get(dedupeKey) === hash) {
     return new Response(JSON.stringify({ changed: false, deduped: true }), {
       status: 200,
@@ -67,11 +66,18 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { data, error } = await supabase.rpc("ingest_snapshot", { p: payload });
+  const { data, error } = await supabase.rpc("ingest_snapshot", { p: payload, p_token: token });
   if (error) {
     console.error("ingest_snapshot failed:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  if ((data as { reason?: string } | null)?.reason === "invalid token") {
+    return new Response(JSON.stringify(data), {
+      status: 401,
       headers: { "content-type": "application/json" },
     });
   }

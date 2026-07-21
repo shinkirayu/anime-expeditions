@@ -1,0 +1,520 @@
+/**
+ * Embedded copy of ../../../src/AnimeExpeditionsTracker.lua with CONFIG.Endpoint
+ * left as a placeholder. Kept in sync manually — if the tracker changes, copy
+ * the new source in here too (Vercel builds with Root Directory=dashboard, so
+ * this can't just import the file from outside the dashboard/ folder).
+ */
+const TRACKER_TEMPLATE = String.raw`--!nonstrict
+--[[
+	Anime Expeditions - Account Data Tracker (v2)
+	---------------------------------------------
+	Reads the LocalPlayer's own account state from the game's Madwork
+	ReplicaService replication and reports changes to an external dashboard.
+]]
+
+--// ---------------------------------------------------------------------------
+--// Services
+--// ---------------------------------------------------------------------------
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--// ---------------------------------------------------------------------------
+--// Configuration
+--// ---------------------------------------------------------------------------
+local CONFIG = {
+	-- Where to send updates. This is your personal tracker endpoint — do not
+	-- share it, anyone with it can post data that gets attributed to you.
+	Endpoint = "__INGEST_ENDPOINT__",
+
+	-- Minimum seconds between outbound reports even if data keeps changing.
+	FlushInterval = 2.0,
+
+	-- Verbose discovery / diff logging.
+	Debug = true,
+
+	-- Replica tokens (Madwork ReplicaService class tokens) that hold live
+	-- "currently in a stage/expedition" state. Only present while a match
+	-- is actually running; absent while in the lobby.
+	LiveStageTokens = { "GameZone", "GameState", "MapData" },
+
+	-- How long to wait at startup for the PlayerData replica to arrive.
+	InitialDataTimeout = 15,
+}
+
+--// ---------------------------------------------------------------------------
+--// Logger
+--// ---------------------------------------------------------------------------
+local Log = {}
+do
+	local PREFIX = "[AE-Tracker]"
+	function Log.info(...)
+		if CONFIG.Debug then
+			print(PREFIX, ...)
+		end
+	end
+	function Log.found(what, where)
+		if CONFIG.Debug then
+			print(PREFIX, "FOUND", what, "->", where)
+		end
+	end
+	function Log.missing(what)
+		if CONFIG.Debug then
+			warn(PREFIX, "MISSING", what)
+		end
+	end
+	function Log.warn(...)
+		warn(PREFIX, ...)
+	end
+end
+
+--// ---------------------------------------------------------------------------
+--// Utility helpers (all fail-safe)
+--// ---------------------------------------------------------------------------
+local Util = {}
+
+function Util.safe(fn, fallback)
+	local ok, result = pcall(fn)
+	if ok then
+		return result
+	end
+	return fallback
+end
+
+-- Coerce arbitrary Roblox values into JSON-friendly primitives.
+function Util.jsonSafe(v)
+	local t = typeof(v)
+	if t == "number" or t == "string" or t == "boolean" or t == "nil" then
+		return v
+	elseif t == "EnumItem" then
+		return tostring(v)
+	elseif t == "Vector3" then
+		return { x = v.X, y = v.Y, z = v.Z }
+	elseif t == "Vector2" then
+		return { x = v.X, y = v.Y }
+	elseif t == "Color3" then
+		return { r = v.R, g = v.G, b = v.B }
+	elseif t == "Instance" then
+		return v.Name
+	elseif t == "table" then
+		return v -- handled by deepJsonSafe
+	end
+	return tostring(v)
+end
+
+-- Recursively copy a replica sub-table into a plain, JSON-safe table.
+function Util.deepJsonSafe(v)
+	if typeof(v) ~= "table" then
+		return Util.jsonSafe(v)
+	end
+	local out = {}
+	for k, val in pairs(v) do
+		out[k] = Util.deepJsonSafe(val)
+	end
+	return out
+end
+
+-- Deep, order-independent equality for the plain tables we build.
+function Util.deepEqual(a, b)
+	if a == b then
+		return true
+	end
+	if typeof(a) ~= "table" or typeof(b) ~= "table" then
+		return false
+	end
+	for k, v in pairs(a) do
+		if not Util.deepEqual(v, b[k]) then
+			return false
+		end
+	end
+	for k in pairs(b) do
+		if a[k] == nil then
+			return false
+		end
+	end
+	return true
+end
+
+function Util.deepCopy(v)
+	if typeof(v) ~= "table" then
+		return v
+	end
+	local out = {}
+	for k, val in pairs(v) do
+		out[k] = Util.deepCopy(val)
+	end
+	return out
+end
+
+--// ---------------------------------------------------------------------------
+--// ReplicaSource
+--// This game replicates player state via Madwork's ReplicaService. The client
+--// counterpart lives at ReplicatedStorage.Shared.ReplicaClient and exposes
+--// OnNew(token, callback) which fires immediately for already-created
+--// replicas of that class token (and again for future ones).
+--// ---------------------------------------------------------------------------
+local ReplicaSource = {}
+ReplicaSource.RC = nil
+ReplicaSource.PlayerReplica = nil
+ReplicaSource.LiveTokenReplicas = {}
+
+function ReplicaSource.init()
+	local ok, RC = pcall(function()
+		return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ReplicaClient"))
+	end)
+	if not ok then
+		Log.warn("ReplicaClient not found:", RC)
+		return nil
+	end
+	ReplicaSource.RC = RC
+
+	Util.safe(function()
+		RC.RequestData()
+	end)
+
+	RC.OnNew("PlayerData", function(replica)
+		ReplicaSource.PlayerReplica = replica
+		Log.found("PlayerData replica", tostring(replica.Id or replica))
+	end)
+
+	for _, token in ipairs(CONFIG.LiveStageTokens) do
+		RC.OnNew(token, function(replica)
+			ReplicaSource.LiveTokenReplicas[token] = replica
+			Log.found("live stage replica", token)
+		end)
+	end
+
+	return RC
+end
+
+function ReplicaSource.waitForPlayerData(timeoutSeconds)
+	local start = os.clock()
+	while ReplicaSource.PlayerReplica == nil and (os.clock() - start) < timeoutSeconds do
+		task.wait(0.25)
+	end
+	if not ReplicaSource.PlayerReplica then
+		Log.missing("PlayerData replica (timed out after " .. timeoutSeconds .. "s)")
+	end
+end
+
+--// ---------------------------------------------------------------------------
+--// Static game data (SheetSyncedModules) — used to enrich raw ids with
+--// display names / rarity / currency classification. All optional: if the
+--// game restructures these, trackers below fall back to raw values.
+--// ---------------------------------------------------------------------------
+local StaticInfo = {}
+do
+	local function tryRequire(...)
+		local parts = { ... }
+		local ok, mod = pcall(function()
+			local cur = ReplicatedStorage
+			for _, part in ipairs(parts) do
+				cur = cur:WaitForChild(part, 5)
+			end
+			return require(cur)
+		end)
+		if ok then
+			return mod
+		end
+		Log.missing("static info: " .. table.concat(parts, "/"))
+		return nil
+	end
+
+	StaticInfo.Items = tryRequire("Shared", "Information", "Items")
+	StaticInfo.Units = tryRequire("Shared", "Information", "Units")
+	local levelMod = tryRequire("Shared", "Information", "PlayerLevelInfo")
+	StaticInfo.LevelInfo = levelMod and levelMod.LevelInfo or nil
+end
+
+-- Convert cumulative Exp into an account Level using the game's own
+-- level-threshold table (LevelInfo[n].TotalEXP = cumulative EXP required for level n).
+local function levelFromExp(exp)
+	local li = StaticInfo.LevelInfo
+	if not li or typeof(exp) ~= "number" then
+		return nil, nil
+	end
+	local level = 1
+	local i = 1
+	while li[i] and li[i].TotalEXP ~= nil and li[i].TotalEXP <= exp do
+		level = i
+		i += 1
+	end
+	local nextEntry = li[level + 1]
+	return level, nextEntry and nextEntry.TotalEXP or nil
+end
+
+--// ---------------------------------------------------------------------------
+--// Trackers
+--// Each reads the flat PlayerData.Data table (already the live replica data,
+--// mutated in place by ReplicaService as the server pushes updates).
+--// ---------------------------------------------------------------------------
+local Trackers = {}
+
+function Trackers.account(data)
+	local exp = data.Exp
+	local level, nextLevelExp = levelFromExp(exp)
+	return {
+		Username = Util.safe(function() return LocalPlayer.Name end),
+		DisplayName = Util.safe(function() return LocalPlayer.DisplayName end),
+		UserId = Util.safe(function() return LocalPlayer.UserId end),
+		Level = level,
+		Exp = exp,
+		NextLevelExp = nextLevelExp,
+	}
+end
+
+-- ItemData holds both currencies and regular items; the static Items sheet
+-- tags each Asset with SubType == "Currency" for the ones that are currencies.
+function Trackers.currencies(itemData)
+	local out = {}
+	if typeof(itemData) ~= "table" then
+		return out
+	end
+	for name, entry in pairs(itemData) do
+		local def = StaticInfo.Items and StaticInfo.Items[name]
+		if def and def.SubType == "Currency" then
+			out[name] = {
+				Amount = typeof(entry) == "table" and entry.Amount or entry,
+				DisplayName = def.DisplayName,
+				Rarity = def.Rarity,
+			}
+		end
+	end
+	return out
+end
+
+function Trackers.inventory(itemData)
+	local out = {}
+	if typeof(itemData) ~= "table" then
+		return out
+	end
+	for name, entry in pairs(itemData) do
+		local def = StaticInfo.Items and StaticInfo.Items[name]
+		local isCurrency = def and def.SubType == "Currency"
+		if not isCurrency then
+			out[name] = {
+				Amount = typeof(entry) == "table" and entry.Amount or entry,
+				DisplayName = def and def.DisplayName or name,
+				SubType = def and def.SubType,
+				Rarity = def and def.Rarity,
+			}
+		end
+	end
+	return out
+end
+
+function Trackers.units(unitData)
+	local out = {}
+	if typeof(unitData) ~= "table" then
+		return out
+	end
+	for uniqueId, u in pairs(unitData) do
+		local def = StaticInfo.Units and StaticInfo.Units[u.Asset]
+		table.insert(out, {
+			UniqueId = uniqueId,
+			Asset = u.Asset,
+			DisplayName = def and def.DisplayName or u.Asset,
+			Rarity = def and def.Rarity,
+			Element = def and def.Element,
+			Archetype = def and def.Archetype,
+			Level = u.Level,
+			EXP = u.EXP,
+			Equipped = u.Equipped,
+			Worthiness = u.Worthiness,
+			TotalTakedowns = u.TotalTakedowns,
+			ObtainedAt = u.ObtainedAt,
+			StatPotential = Util.deepJsonSafe(u.StatPotential),
+		})
+	end
+	return out
+end
+
+-- "Stage" progress: historical completed maps plus, when a match is actually
+-- running, whatever live zone/state replica the server created for it.
+function Trackers.progress(data)
+	local completed = {}
+	if typeof(data.CompletedMaps) == "table" then
+		for mapId in pairs(data.CompletedMaps) do
+			table.insert(completed, tostring(mapId))
+		end
+	end
+
+	local live = {}
+	local inMatch = false
+	for token, replica in pairs(ReplicaSource.LiveTokenReplicas) do
+		live[token] = Util.deepJsonSafe(replica.Data)
+		inMatch = true
+	end
+
+	return {
+		InMatch = inMatch,
+		LiveState = inMatch and live or nil,
+		CompletedMapsCount = #completed,
+		CompletedMaps = completed,
+	}
+end
+
+function Trackers.stats(data)
+	return Util.deepJsonSafe(data.Stats)
+end
+
+--// ---------------------------------------------------------------------------
+--// Snapshot assembly
+--// ---------------------------------------------------------------------------
+local Tracker = {}
+Tracker.Snapshot = {}
+
+function Tracker.build()
+	local replica = ReplicaSource.PlayerReplica
+	if not replica or typeof(replica.Data) ~= "table" then
+		return { SchemaVersion = 2, CapturedAt = Util.safe(function() return os.time() end), Ready = false }
+	end
+
+	local data = replica.Data
+	return {
+		SchemaVersion = 2,
+		CapturedAt = Util.safe(function() return os.time() end),
+		Ready = true,
+		Account = Trackers.account(data),
+		Currencies = Trackers.currencies(data.ItemData),
+		Inventory = Trackers.inventory(data.ItemData),
+		Units = Trackers.units(data.UnitData),
+		Progress = Trackers.progress(data),
+		Stats = Trackers.stats(data),
+	}
+end
+
+--// ---------------------------------------------------------------------------
+--// Transport
+--// ---------------------------------------------------------------------------
+local Transport = {}
+
+local function resolveHttpRequest()
+	local candidates = {
+		rawget(getfenv and getfenv() or _G, "http_request"),
+		(syn and syn.request),
+		(http and http.request),
+		rawget(_G, "request"),
+	}
+	for _, fn in ipairs(candidates) do
+		if typeof(fn) == "function" then
+			return fn
+		end
+	end
+	return nil
+end
+
+function Transport.send(payload)
+	local body = Util.safe(function()
+		return HttpService:JSONEncode(payload)
+	end)
+	if not body then
+		Log.warn("failed to JSON-encode payload")
+		return false
+	end
+
+	if CONFIG.Endpoint == "" then
+		Log.info("Endpoint not set; would send", #body, "bytes")
+		return true
+	end
+
+	local requestFn = resolveHttpRequest()
+	if requestFn then
+		local ok = pcall(function()
+			requestFn({
+				Url = CONFIG.Endpoint,
+				Method = "POST",
+				Headers = { ["Content-Type"] = "application/json" },
+				Body = body,
+			})
+		end)
+		if ok then
+			Log.info("sent", #body, "bytes via executor HTTP")
+			return true
+		end
+	end
+
+	local ok = pcall(function()
+		HttpService:PostAsync(CONFIG.Endpoint, body, Enum.HttpContentType.ApplicationJson)
+	end)
+	if ok then
+		Log.info("sent", #body, "bytes via HttpService")
+		return true
+	end
+
+	Log.warn("all transport methods failed")
+	return false
+end
+
+--// ---------------------------------------------------------------------------
+--// Change engine: diff, debounce, flush
+--// ---------------------------------------------------------------------------
+local Engine = {}
+Engine._lastFlush = 0
+
+function Engine.evaluate()
+	local fresh = Tracker.build()
+	if Util.deepEqual(fresh, Tracker.Snapshot) then
+		return
+	end
+	Tracker.Snapshot = Util.deepCopy(fresh)
+	if Transport.send(fresh) then
+		Engine._lastFlush = os.clock()
+	end
+end
+
+--// ---------------------------------------------------------------------------
+--// Main loop
+--// PlayerData is a live replica: reading replica.Data on each tick already
+--// reflects the latest server-pushed state, so a simple debounced poll loop
+--// (rather than granular per-field signal wiring) is enough to catch changes.
+--// ---------------------------------------------------------------------------
+local function main()
+	if not LocalPlayer then
+		Log.warn("no LocalPlayer; this must run on the client")
+		return
+	end
+
+	Log.info("starting for", LocalPlayer.Name, "(" .. tostring(LocalPlayer.UserId) .. ")")
+
+	local RC = ReplicaSource.init()
+	if not RC then
+		Log.warn("could not initialize ReplicaClient; aborting")
+		return
+	end
+
+	ReplicaSource.waitForPlayerData(CONFIG.InitialDataTimeout)
+
+	-- Prime the first snapshot immediately.
+	Engine.evaluate()
+
+	RunService.Heartbeat:Connect(function()
+		local now = os.clock()
+		if (now - Engine._lastFlush) >= CONFIG.FlushInterval then
+			Engine.evaluate()
+		end
+	end)
+
+	Log.info("running (polling every " .. CONFIG.FlushInterval .. "s)")
+end
+
+main()
+
+--// Expose the module surface for external drivers / debugging consoles.
+return {
+	CONFIG = CONFIG,
+	Tracker = Tracker,
+	Trackers = Trackers,
+	ReplicaSource = ReplicaSource,
+	StaticInfo = StaticInfo,
+	Transport = Transport,
+	Engine = Engine,
+}
+`;
+
+export function buildTrackerScript(endpoint: string): string {
+  return TRACKER_TEMPLATE.replace("__INGEST_ENDPOINT__", endpoint);
+}
