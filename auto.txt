@@ -1,0 +1,493 @@
+--!nonstrict
+-- Anime Expeditions - All-in-one Auto Farm
+-- Runs, in order:
+--   1) Redeem codes
+--   2) Auto summon (Standard 50x until out of gems) + settings/auto-sell
+--   3) Auto equip best team (greatest -> least, one copy per asset)
+--   4) Smart Story progression (first unfinished + unlocked act, map after map)
+--
+-- The top-right log panel is BEST-EFFORT: if this environment can't create GUI
+-- instances (restricted farm identity -> "lacking capability Plugin"), it's
+-- skipped and everything keeps running with prints.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LogService        = game:GetService("LogService")
+local Players           = game:GetService("Players")
+
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+task.wait(5)
+
+-- === Config =============================================================
+-- Phase toggles
+local DO_REDEEM = true
+local DO_SUMMON = true
+local DO_EQUIP  = true
+local DO_STORY  = true
+
+-- 1) Redeem
+local CODES = {
+	"AE#1", "Release", "SorryForBugs", "EXPEDITIONS", "100K!",
+	"30KLIKES!", "200KCCU", "SorryForRestart", "sorryforguilds",
+    "100mvisits", "1MGROUP!",
+}
+local REDEEM_PASSES  = 1    -- full loops over the code list
+local DELAY_PER_CODE = 1.2  -- seconds between each redeem
+local DELAY_PER_PASS = 3    -- seconds between passes
+
+-- 2) Summon
+local MIN_SUMMON_LEVEL = 10    -- don't summon until the account reaches this level
+local BANNER      = "Standard" -- banner key: "Standard", "Mini", etc.
+local AMOUNT      = 50         -- summons per pull (Summon Max limit = 50)
+local COST_EACH   = 50         -- gems per single summon on this banner
+local MAX_PULLS   = math.huge  -- cap pulls; huge = until out of gems
+local PULL_TIMEOUT = 15        -- max seconds to wait for a pull to register
+local COOLDOWN    = 1.0        -- pause between pulls
+local FAST_SUMMON = true       -- Fast Summon setting ON
+local SUMMON_MAX  = true       -- Summon Max Amount setting ON
+local AUTO_SELL_RARITIES = { "Rare", "Epic",} -- normal units of these are sold
+local AUTO_SELL_SHINY    = false                            -- true = also sell shinies
+
+-- 3) Equip
+local STEP_TIMEOUT = 6 -- max seconds to wait for a single equip to register
+
+-- 4) Story
+local GAMEMODE   = "Story"
+local DIFFICULTY = "Normal"   -- "Normal" or "Hard"
+local POLL       = 3          -- seconds between story state checks
+local STOP_WHEN_DONE = true   -- stop once every Story act is cleared
+
+-- Log panel
+local ENABLE_PANEL     = true
+local SHOW_ALL_CONSOLE = false
+local MAX_LOG_LINES    = 18
+-- ========================================================================
+
+local FP        = ReplicatedStorage.FusionPackage
+local Actions   = require(FP.Actions)
+local Deps      = require(FP.Dependencies)
+local Fusion    = require(FP.Fusion)
+local Constants = require(FP.Constants)
+local peek      = Fusion.peek
+local Maps      = require(ReplicatedStorage.Shared.Information.Maps)
+local PlayerLevelInfo = require(ReplicatedStorage.Shared.Information.PlayerLevelInfo)
+
+-- =====================================================================
+--  Best-effort log panel (never aborts any phase)
+-- =====================================================================
+local addLine
+local function buildPanel()
+	local function getGuiParent()
+		local ok, hui = pcall(function() return gethui and gethui() end)
+		if ok and hui then return hui end
+		local ok2, cg = pcall(function() return game:GetService("CoreGui") end)
+		if ok2 and cg then return cg end
+		return Players.LocalPlayer:WaitForChild("PlayerGui")
+	end
+	local parentGui = getGuiParent()
+	local existing = parentGui:FindFirstChild("AutoFarmLog")
+	if existing then existing:Destroy() end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AutoFarmLog"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 9999
+	gui.Parent = parentGui
+
+	local root = Instance.new("Frame")
+	root.AnchorPoint = Vector2.new(1, 0)
+	root.Position = UDim2.new(1, -12, 0, 12)
+	root.Size = UDim2.fromOffset(360, 280)
+	root.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+	root.BackgroundTransparency = 0.15
+	root.BorderSizePixel = 0
+	root.Parent = gui
+	Instance.new("UICorner", root).CornerRadius = UDim.new(0, 8)
+	local stroke = Instance.new("UIStroke", root)
+	stroke.Color = Color3.fromRGB(150, 130, 255)
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.2
+
+	local header = Instance.new("TextLabel")
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BackgroundColor3 = Color3.fromRGB(150, 130, 255)
+	header.BackgroundTransparency = 0.85
+	header.BorderSizePixel = 0
+	header.Text = "  Auto Farm — Logs"
+	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.TextColor3 = Color3.fromRGB(220, 210, 255)
+	header.Font = Enum.Font.GothamBold
+	header.TextSize = 14
+	header.Parent = root
+	Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8)
+
+	local list = Instance.new("ScrollingFrame")
+	list.Position = UDim2.new(0, 0, 0, 30)
+	list.Size = UDim2.new(1, 0, 1, -30)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 4
+	list.ScrollBarImageColor3 = Color3.fromRGB(150, 130, 255)
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.Parent = root
+	local layout = Instance.new("UIListLayout", list)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	local paddin = Instance.new("UIPadding", list)
+	paddin.PaddingLeft = UDim.new(0, 8)
+	paddin.PaddingRight = UDim.new(0, 8)
+	paddin.PaddingTop = UDim.new(0, 4)
+
+	local lineCount = 0
+	return function(text, color)
+		lineCount += 1
+		local lbl = Instance.new("TextLabel")
+		lbl.LayoutOrder = lineCount
+		lbl.BackgroundTransparency = 1
+		lbl.Size = UDim2.new(1, 0, 0, 0)
+		lbl.AutomaticSize = Enum.AutomaticSize.Y
+		lbl.Font = Enum.Font.Code
+		lbl.TextSize = 13
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextYAlignment = Enum.TextYAlignment.Top
+		lbl.TextWrapped = true
+		lbl.TextColor3 = color or Color3.fromRGB(225, 225, 225)
+		lbl.Text = ("[%s] %s"):format(os.date("%H:%M:%S"), text)
+		lbl.Parent = list
+		local kids = {}
+		for _, c in ipairs(list:GetChildren()) do
+			if c:IsA("TextLabel") then table.insert(kids, c) end
+		end
+		table.sort(kids, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+		while #kids > MAX_LOG_LINES do table.remove(kids, 1):Destroy() end
+		task.defer(function()
+			pcall(function() list.CanvasPosition = Vector2.new(0, list.AbsoluteCanvasSize.Y) end)
+		end)
+	end
+end
+
+if ENABLE_PANEL then
+	local ok, res = pcall(buildPanel)
+	if ok then addLine = res else warn("[AutoFarm] Panel unavailable: " .. tostring(res)) end
+end
+
+local COLORS = {
+	info  = Color3.fromRGB(210, 210, 210),
+	good  = Color3.fromRGB(130, 220, 130),
+	queue = Color3.fromRGB(150, 180, 255),
+	warn  = Color3.fromRGB(255, 200, 90),
+	error = Color3.fromRGB(255, 110, 110),
+}
+local function log(msg, kind)
+	if kind == "warn" or kind == "error" then warn("[AutoFarm] " .. msg) else print("[AutoFarm] " .. msg) end
+	if addLine then pcall(addLine, msg, COLORS[kind] or COLORS.info) end
+end
+
+if addLine and SHOW_ALL_CONSOLE then
+	pcall(function()
+		LogService.MessageOut:Connect(function(message, messageType)
+			if string.find(message, "AutoFarm", 1, true) then return end
+			local kind = "info"
+			if messageType == Enum.MessageType.MessageWarning then kind = "warn"
+			elseif messageType == Enum.MessageType.MessageError then kind = "error" end
+			pcall(addLine, message, COLORS[kind])
+		end)
+	end)
+end
+
+-- =====================================================================
+--  Shared state helpers
+-- =====================================================================
+local function playerData() return peek(Deps.PlayerData) or {} end
+
+local function gems()
+	local pd = playerData()
+	return (pd.ItemData and pd.ItemData.Gem and pd.ItemData.Gem.Amount) or 0
+end
+
+-- The game only stores cumulative Exp; level is derived from the same
+-- LevelInfo[n].TotalEXP threshold table the game itself uses.
+local function accountLevel()
+	local exp = playerData().Exp or 0
+	local li = PlayerLevelInfo.LevelInfo
+	if not li then return 1 end
+	local level, i = 1, 1
+	while li[i] and li[i].TotalEXP ~= nil and li[i].TotalEXP <= exp do
+		level = i
+		i += 1
+	end
+	return level
+end
+
+local function isInGame()
+	local ok, v = pcall(function() return peek(require(FP.Shared).IsInGame) end)
+	return ok and v or false
+end
+
+local function isMatchmaking()
+	local sd = peek(Deps.SessionData) or {}
+	return sd.Matchmaking == true
+end
+
+-- =====================================================================
+--  PHASE 1 — Redeem codes
+-- =====================================================================
+local function redeemCodes()
+	log(("Redeeming %d codes x%d passes..."):format(#CODES, REDEEM_PASSES), "good")
+	for pass = 1, REDEEM_PASSES do
+		for _, code in ipairs(CODES) do
+			pcall(function() Actions.RedeemCode(code) end)
+			task.wait(DELAY_PER_CODE)
+		end
+		if pass < REDEEM_PASSES then task.wait(DELAY_PER_PASS) end
+	end
+	log("Redeem done.", "good")
+end
+
+-- =====================================================================
+--  PHASE 2 — Auto summon
+-- =====================================================================
+local function applySummonConfig()
+	Actions.ChangeSetting("FastSummon", FAST_SUMMON)
+	Actions.ChangeSetting("SummonMax", SUMMON_MAX)
+	for _, rarity in ipairs(AUTO_SELL_RARITIES) do
+		Actions.ToggleAutoSell(BANNER, rarity, false, true)           -- normal: sell ON
+		Actions.ToggleAutoSell(BANNER, rarity, true, AUTO_SELL_SHINY) -- shiny: per config
+	end
+	log(("Summon config: FastSummon=%s SummonMax=%s AutoSell=%s (shiny=%s)")
+		:format(tostring(FAST_SUMMON), tostring(SUMMON_MAX), table.concat(AUTO_SELL_RARITIES, "/"), tostring(AUTO_SELL_SHINY)), "good")
+end
+
+local function autoSummon()
+	local COST_PER_PULL = COST_EACH * AMOUNT
+	log(("Summoning %s x%d | Gems: %d"):format(BANNER, AMOUNT, gems()), "good")
+	pcall(applySummonConfig)
+	task.wait(0.5)
+
+	local pulls = 0
+	while pulls < MAX_PULLS do
+		local before = gems()
+		if before < COST_PER_PULL then
+			log(("Out of gems (%d < %d). Summoned %d pull(s)."):format(before, COST_PER_PULL, pulls), "warn")
+			break
+		end
+		Actions.Summon(BANNER, AMOUNT)
+		local confirmed, elapsed = false, 0
+		while elapsed < PULL_TIMEOUT do
+			task.wait(0.25); elapsed += 0.25
+			if gems() < before then confirmed = true break end
+		end
+		if confirmed then
+			pulls += 1
+			log(("Pull #%d done. Gems left: %d"):format(pulls, gems()), "info")
+		else
+			log("Pull did not register within timeout - stopping summon.", "error")
+			break
+		end
+		task.wait(COOLDOWN)
+	end
+	log(("Summon finished. Total pulls: %d"):format(pulls), "good")
+end
+
+-- =====================================================================
+--  PHASE 3 — Auto equip best team
+-- =====================================================================
+local function rarityRank(rarity) return (Constants.OrderedRarities or {})[rarity] or 0 end
+local function unitInfo(asset) return (Deps.Information.Units and Deps.Information.Units[asset]) or {} end
+
+local function hotbarCount()
+	local hb = playerData().HotbarData or {}
+	local n = 0
+	for _ in pairs(hb) do n += 1 end
+	return n
+end
+
+local function maxSlots() return (peek(Deps.HotbarState) or {}).MaxSlots or 6 end
+
+local function waitFor(pred, timeout)
+	local t = 0
+	while t < (timeout or STEP_TIMEOUT) do
+		if pred() then return true end
+		task.wait(0.2); t += 0.2
+	end
+	return false
+end
+
+-- Best copy of each asset only (can only equip ONE per asset).
+local function rankedUnits()
+	local ud = playerData().UnitData or {}
+	local bestByAsset = {}
+	for id, d in pairs(ud) do
+		local info = unitInfo(d.Asset)
+		local score = rarityRank(info.Rarity) * 1e9 + (d.Level or 0) * 1e5 + (d.EXP or 0)
+		local cur = bestByAsset[d.Asset]
+		if not cur or score > cur.score or (score == cur.score and id < cur.id) then
+			bestByAsset[d.Asset] = { id = id, asset = d.Asset, rarity = info.Rarity, level = d.Level, score = score }
+		end
+	end
+	local list = {}
+	for _, u in pairs(bestByAsset) do list[#list + 1] = u end
+	table.sort(list, function(a, b)
+		if a.score ~= b.score then return a.score > b.score end
+		return a.id < b.id
+	end)
+	return list
+end
+
+local function equipBestTeam()
+	local slots = maxSlots()
+	local ranked = rankedUnits()
+	if #ranked == 0 then log("No units owned — skipping equip.", "warn") return end
+
+	-- ranked is already greatest-first; equip in that order (greatest -> least)
+	-- so slot 1 = strongest, last slot = weakest.
+	local order = {}
+	for i = 1, math.min(slots, #ranked) do order[i] = ranked[i] end
+
+	-- Fully UNEQUIP FIRST — retry until the hotbar is actually empty, and only
+	-- start equipping once it is. Equipping onto a dirty hotbar would fool the
+	-- count-based confirmation and produce a wrong team.
+	log("Unequipping all units...", "info")
+	local cleared = false
+	for attempt = 1, 3 do
+		Actions.UnequipAll(false)
+		if waitFor(function() return hotbarCount() == 0 end) then
+			cleared = true
+			break
+		end
+		log(("Unequip attempt %d: %d still equipped, retrying..."):format(attempt, hotbarCount()), "warn")
+	end
+	if not cleared then
+		log("Could not fully unequip (still " .. hotbarCount() .. " equipped). Aborting equip.", "error")
+		return
+	end
+	log("Hotbar cleared.", "good")
+
+	log(("Equipping best %d units (greatest -> least)..."):format(#order), "info")
+	local target = 0
+	for _, u in ipairs(order) do
+		target += 1
+		Actions.EquipUnit(u.id)
+		local tag = ("%s (%s Lv%s)"):format(u.asset, tostring(u.rarity), tostring(u.level))
+		if waitFor(function() return hotbarCount() >= target end) then
+			log(("  slot %d <- %s"):format(target, tag), "good")
+		else
+			target -= 1
+			Actions.EquipUnit(u.id) -- retry once
+			if waitFor(function() return hotbarCount() >= target + 1 end) then
+				target += 1
+				log(("  slot %d <- %s (retry)"):format(target, tag), "good")
+			else
+				log("  failed to equip " .. tag, "warn")
+			end
+		end
+	end
+	log(("Equipped %d/%d best units."):format(hotbarCount(), slots), "good")
+end
+
+-- =====================================================================
+--  PHASE 4 — Smart Story progression
+-- =====================================================================
+local function completedMaps() return playerData().CompletedMaps or {} end
+
+-- First unfinished + unlocked act, map after map (game's own unlock logic).
+local function computeTarget()
+	local cm = completedMaps()
+	for _, mapName in ipairs(Maps:GetOrderedMaps(GAMEMODE)) do
+		if not Maps:HasMapUnlocked(cm, GAMEMODE, mapName) then break end
+		for _, actName in ipairs(Maps:GetOrderedActs(GAMEMODE, mapName) or {}) do
+			local cleared  = Maps:HasMapCompleted(cm, GAMEMODE, mapName, actName)
+			local unlocked = Maps:HasActUnlocked(cm, GAMEMODE, mapName, actName)
+			if not cleared then
+				if unlocked then return mapName, actName else break end
+			end
+		end
+	end
+	return nil
+end
+
+local function queue(mapName, actName)
+	Actions.StartMatchmaking({ Gamemode = GAMEMODE, MapName = mapName, ActName = actName, Difficulty = DIFFICULTY })
+end
+
+local function storyLoop()
+	log(("Smart Story started (difficulty=%s)"):format(DIFFICULTY), "good")
+	local lastQueued = nil
+	while true do
+		if isInGame() then
+			if lastQueued then
+				log("In match — playing " .. lastQueued, "info")
+				lastQueued = nil
+			end
+		elseif isMatchmaking() then
+			-- already queued; wait
+		else
+			local mapName, actName = computeTarget()
+			if not mapName then
+				log("All Story acts cleared. Nothing left to progress.", "good")
+				if STOP_WHEN_DONE then break end
+			else
+				local label = ("%s · %s · %s"):format(mapName, actName, DIFFICULTY)
+				local ok, err = pcall(queue, mapName, actName)
+				if ok then
+					lastQueued = label
+					log("Queued: " .. label, "queue")
+				else
+					log("Queue failed for " .. label .. " (" .. tostring(err) .. ")", "error")
+				end
+			end
+		end
+		task.wait(POLL)
+	end
+	log("Smart Story finished.", "good")
+end
+
+-- =====================================================================
+--  Phase runner: skip-guards (checked in order, first match wins) then a
+--  pcall'd run so one phase's error never aborts the ones after it.
+-- =====================================================================
+local function runPhase(name, fn, guards)
+	for _, guard in ipairs(guards or {}) do
+		if guard.when() then
+			log(guard.message, "warn")
+			return
+		end
+	end
+	local ok, err = pcall(fn)
+	if not ok then log(name .. " error: " .. tostring(err), "error") end
+end
+
+-- =====================================================================
+--  Run everything in order: redeem -> summon -> equip -> story
+-- =====================================================================
+log("=== Auto Farm starting ===", "good")
+
+if DO_REDEEM then
+	runPhase("Redeem", redeemCodes)
+end
+
+if DO_SUMMON then
+	local level = accountLevel()
+	runPhase("Summon", autoSummon, {
+		{ when = isInGame, message = "In a match — skipping summon." },
+		{
+			when = function() return level < MIN_SUMMON_LEVEL end,
+			message = ("Account level %d < %d — skipping summon."):format(level, MIN_SUMMON_LEVEL),
+		},
+	})
+end
+
+if DO_EQUIP then
+	runPhase("Equip", equipBestTeam, {
+		{ when = isInGame, message = "In a match — skipping equip (won't touch team mid-run)." },
+	})
+end
+
+if DO_STORY then
+	storyLoop()
+end
+
+log("=== Auto Farm done ===", "good")

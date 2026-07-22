@@ -18,11 +18,21 @@ export interface MatchInfo {
   SessionTime?: number;
 }
 
+export interface StoryProgress {
+  CompletedActs?: number;
+  TotalActs?: number;
+  Percent?: number;
+  NextMap?: string;
+  NextAct?: string;
+  Completed?: boolean;
+}
+
 export interface ProgressInfo {
   InMatch?: boolean;
   Match?: MatchInfo | null;
   CompletedMapsCount?: number;
   CompletedMaps?: string[];
+  Story?: StoryProgress | null;
 }
 
 /** Light list row — only the columns in ACCOUNT_LIST_COLUMNS are fetched. */

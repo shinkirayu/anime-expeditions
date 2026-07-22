@@ -7,6 +7,7 @@ import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityClass, timeAgo
 import { BarChart } from "../components/BarChart";
 import { AssetImage } from "../components/AssetImage";
 import { ItemCard } from "../components/ItemCard";
+import { StoryProgressBar } from "../components/StoryProgressBar";
 
 const UNIT_PAGE = 60;
 
@@ -142,6 +143,11 @@ export default function AccountPage() {
           <Tile label="Playtime" value={fmtPlaytime(Number.isFinite(playtime) ? playtime : null)} />
         </div>
       </div>
+
+      {/* Story progress */}
+      <Section title="Story progress">
+        <StoryProgressBar story={account.progress?.Story} />
+      </Section>
 
       {/* Live match state */}
       {account.in_match && account.progress?.Match && (

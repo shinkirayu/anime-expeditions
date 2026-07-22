@@ -393,12 +393,67 @@ local function extractMatch(gameStateData)
 	}
 end
 
+-- Story progress: scans every map/act the game itself knows about (same
+-- Maps:GetOrderedMaps/GetOrderedActs/HasMapCompleted API the auto-farm script
+-- uses to pick its next target) to get a total/completed count for a
+-- progress bar, plus the very next uncleared act.
+local function computeStoryProgress(completedMaps)
+	local ok, Maps = pcall(function()
+		return require(ReplicatedStorage.Shared.Information.Maps)
+	end)
+	if not ok or typeof(Maps) ~= "table" then
+		return nil
+	end
+
+	local okMaps, orderedMaps = pcall(function()
+		return Maps:GetOrderedMaps("Story")
+	end)
+	if not okMaps or typeof(orderedMaps) ~= "table" then
+		return nil
+	end
+
+	local totalActs, completedActs = 0, 0
+	local nextMap, nextAct = nil, nil
+
+	for _, mapName in ipairs(orderedMaps) do
+		local actsOk, acts = pcall(function()
+			return Maps:GetOrderedActs("Story", mapName)
+		end)
+		if actsOk and typeof(acts) == "table" then
+			for _, actName in ipairs(acts) do
+				totalActs += 1
+				local cleared = false
+				pcall(function()
+					cleared = Maps:HasMapCompleted(completedMaps, "Story", mapName, actName)
+				end)
+				if cleared then
+					completedActs += 1
+				elseif not nextMap then
+					nextMap, nextAct = mapName, actName
+				end
+			end
+		end
+	end
+
+	if totalActs == 0 then
+		return nil
+	end
+
+	return {
+		CompletedActs = completedActs,
+		TotalActs = totalActs,
+		Percent = math.floor((completedActs / totalActs) * 1000 + 0.5) / 10,
+		NextMap = nextMap,
+		NextAct = nextAct,
+		Completed = completedActs >= totalActs,
+	}
+end
+
 function Trackers.progress(data)
 	local completed = {}
-	if typeof(data.CompletedMaps) == "table" then
-		for mapId in pairs(data.CompletedMaps) do
-			table.insert(completed, tostring(mapId))
-		end
+	local completedMaps = typeof(data.CompletedMaps) == "table" and data.CompletedMaps or {}
+	for mapId in pairs(completedMaps) do
+		table.insert(completed, tostring(mapId))
 	end
 
 	local gameStateReplica = ReplicaSource.LiveTokenReplicas["GameState"]
@@ -409,6 +464,7 @@ function Trackers.progress(data)
 		Match = match,
 		CompletedMapsCount = #completed,
 		CompletedMaps = completed,
+		Story = computeStoryProgress(completedMaps),
 	}
 end
 

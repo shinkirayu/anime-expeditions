@@ -85,7 +85,7 @@ export function getGemsAmount(currencies: Record<string, CurrencyLike> | null | 
 const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
 /** "Act 1" -> "I", "Act 2" -> "II", etc. Falls back to the raw name if not "Act N". */
-function actToRoman(actName: string | undefined): string | undefined {
+export function actToRoman(actName: string | undefined): string | undefined {
   if (!actName) return undefined;
   const n = Number(actName.match(/\d+/)?.[0]);
   if (!n || n < 1 || n > ROMAN_NUMERALS.length) return actName;
