@@ -46,8 +46,8 @@ local PULL_TIMEOUT = 15        -- max seconds to wait for a pull to register
 local COOLDOWN    = 1.0        -- pause between pulls
 local FAST_SUMMON = true       -- Fast Summon setting ON
 local SUMMON_MAX  = true       -- Summon Max Amount setting ON
-local AUTO_SELL_RARITIES = { "Rare", "Epic",} -- normal units of these are sold
-local AUTO_SELL_SHINY    = false                            -- true = also sell shinies
+local AUTO_SELL_RARITIES = { "Rare", "Epic",} -- normal AND shiny units of these are sold
+local AUTO_SELL_SHINY    = true                             -- true = also sell shinies
 
 -- 3) Equip
 local STEP_TIMEOUT = 6 -- max seconds to wait for a single equip to register
@@ -232,6 +232,18 @@ local function isMatchmaking()
 	return sd.Matchmaking == true
 end
 
+-- Poll `pred` every 0.2s until it returns true or `timeout` seconds pass.
+-- Shared by anything that fires a remote and needs to confirm it actually
+-- replicated (equip, auto-sell settings) rather than blind task.wait()'ing.
+local function waitFor(pred, timeout)
+	local t = 0
+	while t < (timeout or STEP_TIMEOUT) do
+		if pred() then return true end
+		task.wait(0.2); t += 0.2
+	end
+	return false
+end
+
 -- =====================================================================
 --  PHASE 1 — Redeem codes
 -- =====================================================================
@@ -250,6 +262,16 @@ end
 -- =====================================================================
 --  PHASE 2 — Auto summon
 -- =====================================================================
+-- Reads back PlayerData.Settings.AutoSell[banner][rarity | rarity.."Shiny"] —
+-- the actual server-confirmed state, as opposed to trusting that the
+-- ToggleAutoSell remote we fired has been processed yet.
+local function autoSellState(banner, rarity, shiny)
+	local settings = playerData().Settings
+	local bannerSettings = settings and settings.AutoSell and settings.AutoSell[banner]
+	if typeof(bannerSettings) ~= "table" then return nil end
+	return bannerSettings[shiny and (rarity .. "Shiny") or rarity]
+end
+
 local function applySummonConfig()
 	Actions.ChangeSetting("FastSummon", FAST_SUMMON)
 	Actions.ChangeSetting("SummonMax", SUMMON_MAX)
@@ -257,15 +279,36 @@ local function applySummonConfig()
 		Actions.ToggleAutoSell(BANNER, rarity, false, true)           -- normal: sell ON
 		Actions.ToggleAutoSell(BANNER, rarity, true, AUTO_SELL_SHINY) -- shiny: per config
 	end
-	log(("Summon config: FastSummon=%s SummonMax=%s AutoSell=%s (shiny=%s)")
-		:format(tostring(FAST_SUMMON), tostring(SUMMON_MAX), table.concat(AUTO_SELL_RARITIES, "/"), tostring(AUTO_SELL_SHINY)), "good")
+
+	-- ToggleAutoSell is fire-and-forget; confirm the server actually saved
+	-- each toggle before summoning starts, instead of guessing with a fixed
+	-- delay (units were being missed because the big SummonMax batch could
+	-- fire before the server had processed the auto-sell change).
+	local confirmed = waitFor(function()
+		for _, rarity in ipairs(AUTO_SELL_RARITIES) do
+			if autoSellState(BANNER, rarity, false) ~= true then return false end
+			if autoSellState(BANNER, rarity, true) ~= AUTO_SELL_SHINY then return false end
+		end
+		return true
+	end, 5)
+
+	log(("Summon config: FastSummon=%s SummonMax=%s AutoSell=%s (shiny=%s) confirmed=%s")
+		:format(tostring(FAST_SUMMON), tostring(SUMMON_MAX), table.concat(AUTO_SELL_RARITIES, "/"),
+			tostring(AUTO_SELL_SHINY), tostring(confirmed)), confirmed and "good" or "warn")
+
+	return confirmed
 end
 
 local function autoSummon()
 	local COST_PER_PULL = COST_EACH * AMOUNT
 	log(("Summoning %s x%d | Gems: %d"):format(BANNER, AMOUNT, gems()), "good")
-	pcall(applySummonConfig)
-	task.wait(0.5)
+
+	local configOk, autoSellConfirmed = pcall(applySummonConfig)
+	if not configOk then
+		log("Failed to apply summon config (auto-sell may not be active!): " .. tostring(autoSellConfirmed), "error")
+	elseif not autoSellConfirmed then
+		log("AutoSell settings did not confirm in time — proceeding anyway, but units may not get sold.", "warn")
+	end
 
 	local pulls = 0
 	while pulls < MAX_PULLS do
@@ -306,15 +349,6 @@ local function hotbarCount()
 end
 
 local function maxSlots() return (peek(Deps.HotbarState) or {}).MaxSlots or 6 end
-
-local function waitFor(pred, timeout)
-	local t = 0
-	while t < (timeout or STEP_TIMEOUT) do
-		if pred() then return true end
-		task.wait(0.2); t += 0.2
-	end
-	return false
-end
 
 -- Best copy of each asset only (can only equip ONE per asset).
 local function rankedUnits()

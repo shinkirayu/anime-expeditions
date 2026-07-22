@@ -88,14 +88,15 @@ export default function DashboardPage() {
           <div className="overflow-x-auto rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
             <table className="w-full min-w-[640px] table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[22%]" />
-                <col className="w-[7%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
-                <col className="w-[17%]" />
+                <col className="w-[19%]" />
+                <col className="w-[6%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
                 <col className="w-[10%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[17%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 text-[11px] tracking-wide text-fuchsia-700/70 uppercase dark:border-fuchsia-500/10 dark:text-fuchsia-300/60">
@@ -103,6 +104,7 @@ export default function DashboardPage() {
                   <th className="px-3 py-3 text-center font-semibold">Level</th>
                   <th className="px-3 py-3 text-center font-semibold">Gems</th>
                   <th className="px-3 py-3 text-center font-semibold">Trait Crystal</th>
+                  <th className="px-3 py-3 text-center font-semibold">Story</th>
                   <th className="px-3 py-3 text-center font-semibold">Units</th>
                   <th className="px-3 py-3 text-center font-semibold">Items</th>
                   <th className="px-3 py-3 text-center font-semibold">Location</th>

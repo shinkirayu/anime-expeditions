@@ -5,6 +5,7 @@ import { isOnline } from "../lib/types";
 import { fmtNum, getCurrencyEntry, getLocationLabel, timeAgo } from "../lib/format";
 import { BackpackIcon, SwordIcon } from "./icons";
 import { AssetImage } from "./AssetImage";
+import { MiniProgressBar } from "./MiniProgressBar";
 
 /** Memoized so a realtime patch to one row never re-renders the whole table. */
 export const AccountRow = memo(function AccountRow({
@@ -51,6 +52,9 @@ export const AccountRow = memo(function AccountRow({
         </span>
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
+        <MiniProgressBar percent={account.progress?.Story?.Percent} completed={account.progress?.Story?.Completed} />
+      </td>
+      <td className="px-3 py-2.5 text-center align-middle">
         <button
           onClick={() => onShowUnits(account.user_id)}
           className="font-display inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-500/10 to-purple-700/10 px-3 py-1 text-xs font-semibold tabular-nums text-fuchsia-700 transition-all hover:from-fuchsia-500/25 hover:to-purple-700/25 hover:shadow-[0_0_10px_rgba(129,19,255,0.4)] dark:border-fuchsia-500/30 dark:text-fuchsia-300"
@@ -66,12 +70,13 @@ export const AccountRow = memo(function AccountRow({
           {account.item_count} <BackpackIcon />
         </button>
       </td>
-      <td className="truncate px-3 py-2.5 text-center align-middle text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        {account.in_match && (
-          <span className="mr-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-            MATCH
-          </span>
-        )}
+      <td
+        className={`truncate px-3 py-2.5 text-center align-middle text-xs font-semibold whitespace-nowrap ${
+          account.in_match
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-zinc-500 dark:text-zinc-400"
+        }`}
+      >
         {location}
       </td>
       <td className="py-2.5 pr-4 pl-3 text-right align-middle text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
