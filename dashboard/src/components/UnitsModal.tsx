@@ -39,15 +39,17 @@ export function UnitsModal({ account, onClose }: { account: AccountListRow; onCl
           ) : (
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[40%]" />
-                <col className="w-[22%]" />
+                <col className="w-[32%]" />
                 <col className="w-[18%]" />
-                <col className="w-[20%]" />
+                <col className="w-[22%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-fuchsia-500/10 dark:text-zinc-400">
                   <th className="px-2 py-2 font-medium">Unit</th>
                   <th className="px-2 py-2 text-center font-medium">Rarity</th>
+                  <th className="px-2 py-2 text-center font-medium">Trait</th>
                   <th className="px-2 py-2 text-center font-medium">Level</th>
                   <th className="px-2 py-2 text-center font-medium">Equipped</th>
                 </tr>
@@ -57,6 +59,9 @@ export function UnitsModal({ account, onClose }: { account: AccountListRow; onCl
                   <tr key={u.UniqueId} className="border-b border-zinc-100 last:border-0 dark:border-white/[0.04]">
                     <td className="truncate px-2 py-2 font-medium">{u.DisplayName || u.Asset}</td>
                     <td className={`px-2 py-2 text-center ${rarityClass(u.Rarity)}`}>{u.Rarity ?? "—"}</td>
+                    <td className={`truncate px-2 py-2 text-center ${rarityClass(u.Trait?.Rarity)}`}>
+                      {u.Trait?.DisplayName ?? "—"}
+                    </td>
                     <td className="px-2 py-2 text-center tabular-nums">{fmtNum(u.Level)}</td>
                     <td className="px-2 py-2 text-center">{u.Equipped ? "✓" : ""}</td>
                   </tr>

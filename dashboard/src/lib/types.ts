@@ -33,6 +33,7 @@ export interface ProgressInfo {
   CompletedMapsCount?: number;
   CompletedMaps?: string[];
   Story?: StoryProgress | null;
+  Raid?: StoryProgress | null;
 }
 
 /** Light list row — only the columns in ACCOUNT_LIST_COLUMNS are fetched. */
@@ -57,6 +58,14 @@ export interface AccountRow extends AccountListRow {
   updated_at: string;
 }
 
+export interface TraitInfo {
+  Trait?: string;
+  DisplayName?: string;
+  Rarity?: string;
+  Icon?: string;
+  Description?: string;
+}
+
 export interface UnitEntry {
   UniqueId: string;
   Asset?: string;
@@ -71,6 +80,7 @@ export interface UnitEntry {
   TotalTakedowns?: number;
   ObtainedAt?: number;
   StatPotential?: Record<string, unknown>;
+  Trait?: TraitInfo | null;
 }
 
 export interface InventoryEntry {

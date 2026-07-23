@@ -242,6 +242,7 @@ end
 function StaticInfo.load()
 	StaticInfo.Items = tryRequire("Shared", "Information", "Items")
 	StaticInfo.Units = tryRequire("Shared", "Information", "Units")
+	StaticInfo.Traits = tryRequire("Shared", "Information", "Traits")
 	local levelMod = tryRequire("Shared", "Information", "PlayerLevelInfo")
 	StaticInfo.LevelInfo = levelMod and levelMod.LevelInfo or nil
 end
@@ -339,6 +340,23 @@ function Trackers.inventory(itemData)
 	return out
 end
 
+-- Units don't carry a Trait until the player actually rolls one via the
+-- Trait Crystal reroll system, so this is nil for most units — enriched
+-- from Shared.Information.Traits.TraitData[traitName] when present.
+local function traitInfo(traitName)
+	if not traitName or not StaticInfo.Traits then
+		return nil
+	end
+	local def = StaticInfo.Traits.TraitData and StaticInfo.Traits.TraitData[traitName]
+	return {
+		Trait = traitName,
+		DisplayName = def and def.DisplayName or traitName,
+		Rarity = def and def.Rarity,
+		Icon = def and def.Image,
+		Description = def and def.Description,
+	}
+end
+
 function Trackers.units(unitData)
 	local out = {}
 	if typeof(unitData) ~= "table" then
@@ -360,6 +378,7 @@ function Trackers.units(unitData)
 			TotalTakedowns = u.TotalTakedowns,
 			ObtainedAt = u.ObtainedAt,
 			StatPotential = Util.deepJsonSafe(u.StatPotential),
+			Trait = traitInfo(u.Trait),
 		})
 	end
 	return out
@@ -393,11 +412,12 @@ local function extractMatch(gameStateData)
 	}
 end
 
--- Story progress: scans every map/act the game itself knows about (same
--- Maps:GetOrderedMaps/GetOrderedActs/HasMapCompleted API the auto-farm script
--- uses to pick its next target) to get a total/completed count for a
--- progress bar, plus the very next uncleared act.
-local function computeStoryProgress(completedMaps)
+-- Gamemode progress: scans every map/act the game itself knows about for the
+-- given gamemode (same Maps:GetOrderedMaps/GetOrderedActs/HasMapCompleted API
+-- the auto-farm script uses to pick its next target) to get a total/completed
+-- count for a progress bar, plus the very next uncleared act. Used for both
+-- "Story" and "Raid" — same API, different gamemode name.
+local function computeGamemodeProgress(completedMaps, gamemode)
 	local ok, Maps = pcall(function()
 		return require(ReplicatedStorage.Shared.Information.Maps)
 	end)
@@ -406,7 +426,7 @@ local function computeStoryProgress(completedMaps)
 	end
 
 	local okMaps, orderedMaps = pcall(function()
-		return Maps:GetOrderedMaps("Story")
+		return Maps:GetOrderedMaps(gamemode)
 	end)
 	if not okMaps or typeof(orderedMaps) ~= "table" then
 		return nil
@@ -417,14 +437,14 @@ local function computeStoryProgress(completedMaps)
 
 	for _, mapName in ipairs(orderedMaps) do
 		local actsOk, acts = pcall(function()
-			return Maps:GetOrderedActs("Story", mapName)
+			return Maps:GetOrderedActs(gamemode, mapName)
 		end)
 		if actsOk and typeof(acts) == "table" then
 			for _, actName in ipairs(acts) do
 				totalActs += 1
 				local cleared = false
 				pcall(function()
-					cleared = Maps:HasMapCompleted(completedMaps, "Story", mapName, actName)
+					cleared = Maps:HasMapCompleted(completedMaps, gamemode, mapName, actName)
 				end)
 				if cleared then
 					completedActs += 1
@@ -464,7 +484,8 @@ function Trackers.progress(data)
 		Match = match,
 		CompletedMapsCount = #completed,
 		CompletedMaps = completed,
-		Story = computeStoryProgress(completedMaps),
+		Story = computeGamemodeProgress(completedMaps, "Story"),
+		Raid = computeGamemodeProgress(completedMaps, "Raid"),
 	}
 end
 

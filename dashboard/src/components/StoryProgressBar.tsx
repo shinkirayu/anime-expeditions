@@ -1,9 +1,15 @@
 import { actToRoman } from "../lib/format";
 import type { StoryProgress } from "../lib/types";
 
-export function StoryProgressBar({ story }: { story: StoryProgress | null | undefined }) {
+export function StoryProgressBar({
+  story,
+  label = "Story",
+}: {
+  story: StoryProgress | null | undefined;
+  label?: string;
+}) {
   if (!story || !story.TotalActs) {
-    return <p className="text-sm text-zinc-400">No story progress data yet.</p>;
+    return <p className="text-sm text-zinc-400">No {label.toLowerCase()} progress data yet.</p>;
   }
 
   const percent = story.Percent ?? 0;
@@ -12,7 +18,7 @@ export function StoryProgressBar({ story }: { story: StoryProgress | null | unde
     return (
       <div className="gradient-purple flex items-center justify-between rounded-xl p-4 text-white shadow-[0_0_16px_rgba(129,19,255,0.4)]">
         <div>
-          <div className="font-display text-outline text-base font-semibold">Story Completed! 🎉</div>
+          <div className="font-display text-outline text-base font-semibold">{label} Completed! 🎉</div>
           <div className="text-xs text-white/85">
             All {story.TotalActs} acts cleared across every map.
           </div>
