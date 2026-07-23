@@ -20,7 +20,7 @@ export const AccountRow = memo(function AccountRow({
   const online = isOnline(account.last_seen);
   const gems = getCurrencyEntry(account.currencies, "gem");
   const traitCrystal = getCurrencyEntry(account.currencies, "trait crystal");
-  const location = getLocationLabel(account.progress);
+  const location = getLocationLabel(account.progress, online);
 
   return (
     <tr className="cv-auto border-b border-zinc-100 align-middle last:border-0 hover:bg-zinc-50 dark:border-white/[0.04] dark:hover:bg-white/[0.03]">
@@ -72,7 +72,7 @@ export const AccountRow = memo(function AccountRow({
       </td>
       <td
         className={`truncate px-3 py-2.5 text-center align-middle text-xs font-semibold whitespace-nowrap ${
-          account.in_match
+          account.in_match && online
             ? "text-amber-600 dark:text-amber-400"
             : "text-zinc-500 dark:text-zinc-400"
         }`}

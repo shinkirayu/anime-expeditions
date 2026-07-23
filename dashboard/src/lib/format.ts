@@ -98,10 +98,14 @@ interface ProgressLike {
 }
 
 /**
- * "Lobby" when not in a match; otherwise the actual stage, e.g. "SchoolGrounds I".
- * The game's "Act N" within a map is the stage variant players call "Map I/II/III".
+ * "Offline" when the tracker hasn't reported recently — "Lobby" would be
+ * misleading since that's just the last known state, not a live one.
+ * Otherwise "Lobby" when not in a match, or the actual stage, e.g.
+ * "SchoolGrounds I". The game's "Act N" within a map is the stage variant
+ * players call "Map I/II/III".
  */
-export function getLocationLabel(progress: ProgressLike | null | undefined): string {
+export function getLocationLabel(progress: ProgressLike | null | undefined, online: boolean): string {
+  if (!online) return "Offline";
   if (!progress?.InMatch) return "Lobby";
   const m = progress.Match;
   if (!m) return "In Match";
