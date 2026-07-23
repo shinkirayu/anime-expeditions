@@ -19,6 +19,8 @@ export interface MatchInfo {
 }
 
 export interface StoryProgress {
+  Locked?: boolean;
+  RequiredLevel?: number;
   CompletedActs?: number;
   TotalActs?: number;
   Percent?: number;

@@ -8,6 +8,17 @@ export function StoryProgressBar({
   story: StoryProgress | null | undefined;
   label?: string;
 }) {
+  if (story?.Locked) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+        <span className="text-base">🔒</span>
+        <span>
+          {label} locked{story.RequiredLevel ? ` — unlocks at level ${story.RequiredLevel}` : ""}.
+        </span>
+      </div>
+    );
+  }
+
   if (!story || !story.TotalActs) {
     return <p className="text-sm text-zinc-400">No {label.toLowerCase()} progress data yet.</p>;
   }

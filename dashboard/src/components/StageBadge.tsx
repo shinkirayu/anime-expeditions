@@ -3,6 +3,16 @@ import type { StoryProgress } from "../lib/types";
 
 /** Shows the current/highest unlocked stage as a Roman numeral (I, II, III...) instead of a percent. */
 export function StageBadge({ story }: { story: StoryProgress | null | undefined }) {
+  if (story?.Locked) {
+    return (
+      <span
+        className="font-display text-xs font-semibold text-zinc-400 dark:text-zinc-500"
+        title={story.RequiredLevel ? `Unlocks at level ${story.RequiredLevel}` : "Locked"}
+      >
+        🔒{story.RequiredLevel ? ` Lvl ${story.RequiredLevel}` : ""}
+      </span>
+    );
+  }
   if (!story || !story.TotalActs) {
     return <span className="text-xs text-zinc-400">—</span>;
   }

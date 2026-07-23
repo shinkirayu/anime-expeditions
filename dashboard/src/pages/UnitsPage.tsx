@@ -145,7 +145,14 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
               to={`/account/${o.user_id}`}
               className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm transition-colors hover:border-fuchsia-400 dark:border-white/5 dark:bg-white/[0.04] dark:hover:border-fuchsia-500/50"
             >
-              <span className="truncate font-medium">{o.display_name || o.username}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{o.display_name || o.username}</span>
+                {o.Trait?.DisplayName && (
+                  <span className={`block truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
+                    {o.Trait.DisplayName}
+                  </span>
+                )}
+              </span>
               <span className="ml-2 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
                 Lv {o.Level ?? "—"} {o.Equipped ? "· equipped" : ""}
               </span>

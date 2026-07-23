@@ -243,6 +243,7 @@ function StaticInfo.load()
 	StaticInfo.Items = tryRequire("Shared", "Information", "Items")
 	StaticInfo.Units = tryRequire("Shared", "Information", "Units")
 	StaticInfo.Traits = tryRequire("Shared", "Information", "Traits")
+	StaticInfo.Gamemodes = tryRequire("Shared", "Information", "Gamemodes")
 	local levelMod = tryRequire("Shared", "Information", "PlayerLevelInfo")
 	StaticInfo.LevelInfo = levelMod and levelMod.LevelInfo or nil
 end
@@ -417,7 +418,16 @@ end
 -- the auto-farm script uses to pick its next target) to get a total/completed
 -- count for a progress bar, plus the very next uncleared act. Used for both
 -- "Story" and "Raid" — same API, different gamemode name.
-local function computeGamemodeProgress(completedMaps, gamemode)
+local function computeGamemodeProgress(completedMaps, gamemode, accountLevel)
+	local gamemodeDef = StaticInfo.Gamemodes and StaticInfo.Gamemodes[gamemode]
+	local requiredLevel = gamemodeDef and tonumber(gamemodeDef.RequiredLevel)
+	if requiredLevel and (accountLevel == nil or accountLevel < requiredLevel) then
+		return {
+			Locked = true,
+			RequiredLevel = requiredLevel,
+		}
+	end
+
 	local ok, Maps = pcall(function()
 		return require(ReplicatedStorage.Shared.Information.Maps)
 	end)
@@ -460,6 +470,7 @@ local function computeGamemodeProgress(completedMaps, gamemode)
 	end
 
 	return {
+		Locked = false,
 		CompletedActs = completedActs,
 		TotalActs = totalActs,
 		Percent = math.floor((completedActs / totalActs) * 1000 + 0.5) / 10,
@@ -478,14 +489,15 @@ function Trackers.progress(data)
 
 	local gameStateReplica = ReplicaSource.LiveTokenReplicas["GameState"]
 	local match = gameStateReplica and extractMatch(gameStateReplica.Data)
+	local accountLevel = levelFromExp(data.Exp)
 
 	return {
 		InMatch = match ~= nil,
 		Match = match,
 		CompletedMapsCount = #completed,
 		CompletedMaps = completed,
-		Story = computeGamemodeProgress(completedMaps, "Story"),
-		Raid = computeGamemodeProgress(completedMaps, "Raid"),
+		Story = computeGamemodeProgress(completedMaps, "Story", accountLevel),
+		Raid = computeGamemodeProgress(completedMaps, "Raid", accountLevel),
 	}
 end
 
