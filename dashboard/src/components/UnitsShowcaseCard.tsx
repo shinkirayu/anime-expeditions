@@ -5,13 +5,14 @@ import { SwordIcon } from "./icons";
 import { UnitIconImage } from "./UnitIconImage";
 
 const SIZE = 1000;
-const MAX_SHOWN = 15;
+const MAX_SHOWN = 24;
+export const DEFAULT_UNIT_COLUMNS = 5;
 
 /** Square gallery of the account's best units — same rarity-box tile as the Units page, sorted rarity-first then level. */
 export const UnitsShowcaseCard = forwardRef<
   HTMLDivElement,
-  { account: AccountRow; details: AccountDetailsRow | null | undefined }
->(function UnitsShowcaseCard({ details }, ref) {
+  { account: AccountRow; details: AccountDetailsRow | null | undefined; columns?: number }
+>(function UnitsShowcaseCard({ details, columns = DEFAULT_UNIT_COLUMNS }, ref) {
   const units = useMemo(() => (details?.units ?? []) as UnitEntry[], [details]);
 
   const sorted = useMemo(
@@ -38,7 +39,7 @@ export const UnitsShowcaseCard = forwardRef<
           <span className="text-sm font-semibold text-white/50 uppercase">{units.length} owned</span>
         </div>
 
-        <div className="mt-6 grid grid-cols-5 gap-3.5">
+        <div className="mt-6 grid gap-3.5" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {shown.map((u) => (
             <UnitTile key={u.UniqueId} unit={u} />
           ))}

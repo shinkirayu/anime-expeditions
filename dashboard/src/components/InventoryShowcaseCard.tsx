@@ -4,13 +4,14 @@ import { rarityRank } from "../lib/format";
 import { ItemCard } from "./ItemCard";
 
 const SIZE = 1000;
-const MAX_SHOWN = 18;
+const MAX_SHOWN = 24;
+export const DEFAULT_ITEM_COLUMNS = 6;
 
 /** Square gallery of the account's most valuable items — same rarity-box tile as items.html, sorted rarity-first then amount. */
 export const InventoryShowcaseCard = forwardRef<
   HTMLDivElement,
-  { account: AccountRow; details: AccountDetailsRow | null | undefined }
->(function InventoryShowcaseCard({ account, details }, ref) {
+  { account: AccountRow; details: AccountDetailsRow | null | undefined; columns?: number }
+>(function InventoryShowcaseCard({ account, details, columns = DEFAULT_ITEM_COLUMNS }, ref) {
   const items = useMemo(() => {
     const currencyNames = new Set(Object.keys(account.currencies ?? {}));
     return Object.entries(details?.inventory ?? ({} as Record<string, InventoryEntry>))
@@ -38,7 +39,7 @@ export const InventoryShowcaseCard = forwardRef<
           <span className="text-sm font-semibold text-white/50 uppercase">{items.length} items</span>
         </div>
 
-        <div className="mt-6 grid grid-cols-6 gap-3">
+        <div className="mt-6 grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {shown.map(([name, item]) => (
             <ItemCard
               key={name}

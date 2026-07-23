@@ -15,12 +15,12 @@ import {
   type VisibleStats,
 } from "../components/AccountShowcaseCard";
 import { CloseButton } from "../components/CloseButton";
-import { InventoryShowcaseCard } from "../components/InventoryShowcaseCard";
+import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "../components/InventoryShowcaseCard";
 import { ItemCard } from "../components/ItemCard";
 import { StatsShowcaseCard } from "../components/StatsShowcaseCard";
 import { StoryProgressBar } from "../components/StoryProgressBar";
 import { UnitIconImage } from "../components/UnitIconImage";
-import { UnitsShowcaseCard } from "../components/UnitsShowcaseCard";
+import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "../components/UnitsShowcaseCard";
 
 const UNIT_PAGE = 60;
 
@@ -49,7 +49,10 @@ export default function AccountPage() {
   const [pose, setPose] = useState<PoseTransform>(DEFAULT_POSE_TRANSFORM);
   const [visibleStats, setVisibleStats] = useState<VisibleStats>(DEFAULT_VISIBLE_STATS);
   const [featuredUnitId, setFeaturedUnitId] = useState<string | null>(null);
+  const [unitColumns, setUnitColumns] = useState(DEFAULT_UNIT_COLUMNS);
+  const [itemColumns, setItemColumns] = useState(DEFAULT_ITEM_COLUMNS);
   const poseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const columnsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const unitsRef = useRef<HTMLDivElement>(null);
@@ -103,6 +106,13 @@ export default function AccountPage() {
     setFeaturedUnitId(unitId || null);
     setPose(DEFAULT_POSE_TRANSFORM);
     setTimeout(() => renderType("hero"), 50);
+  }
+
+  function adjustColumns(type: "units" | "inventory", columns: number) {
+    if (type === "units") setUnitColumns(columns);
+    else setItemColumns(columns);
+    if (columnsDebounceRef.current) clearTimeout(columnsDebounceRef.current);
+    columnsDebounceRef.current = setTimeout(() => renderType(type), 250);
   }
 
   const units = useMemo(() => {
@@ -397,8 +407,8 @@ export default function AccountPage() {
           visibleStats={visibleStats}
           unitId={featuredUnitId}
         />
-        <UnitsShowcaseCard ref={unitsRef} account={account} details={details.data} />
-        <InventoryShowcaseCard ref={inventoryRef} account={account} details={details.data} />
+        <UnitsShowcaseCard ref={unitsRef} account={account} details={details.data} columns={unitColumns} />
+        <InventoryShowcaseCard ref={inventoryRef} account={account} details={details.data} columns={itemColumns} />
         <StatsShowcaseCard ref={statsRef} account={account} details={details.data} />
       </div>
 
@@ -416,6 +426,9 @@ export default function AccountPage() {
           units={(details.data?.units ?? []) as UnitEntry[]}
           featuredUnitId={featuredUnitId}
           onSelectUnit={selectFeaturedUnit}
+          unitColumns={unitColumns}
+          itemColumns={itemColumns}
+          onAdjustColumns={adjustColumns}
           onClose={() => {
             setShowcaseOpen(false);
             setShowcasePng(null);
@@ -439,6 +452,9 @@ function ShowcasePreviewModal({
   units,
   featuredUnitId,
   onSelectUnit,
+  unitColumns,
+  itemColumns,
+  onAdjustColumns,
   onClose,
 }: {
   src: string | null;
@@ -453,6 +469,9 @@ function ShowcasePreviewModal({
   units: UnitEntry[];
   featuredUnitId: string | null;
   onSelectUnit: (unitId: string) => void;
+  unitColumns: number;
+  itemColumns: number;
+  onAdjustColumns: (type: "units" | "inventory", columns: number) => void;
   onClose: () => void;
 }) {
   const index = SHOWCASE_TYPES.indexOf(type);
@@ -463,62 +482,75 @@ function ShowcasePreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] max-w-[min(90vw,640px)] flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-sm font-semibold text-white">Showcase preview</h2>
-          <CloseButton onClick={onClose} />
-        </div>
+      <div
+        className="flex max-h-[90vh] w-full max-w-[min(94vw,860px)] gap-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-sm font-semibold text-white">Showcase preview</h2>
+            <CloseButton onClick={onClose} />
+          </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => go(-1)}
-            aria-label="Previous showcase"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-          >
-            ‹
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => go(-1)}
+              aria-label="Previous showcase"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            >
+              ‹
+            </button>
 
-          <div className="flex min-h-[300px] flex-1 items-center justify-center">
-            {loading || !src ? (
-              <div className="flex aspect-square w-full items-center justify-center text-sm text-white/50">
-                Rendering…
-              </div>
-            ) : (
-              <img src={src} alt={`${SHOWCASE_LABELS[type]} showcase`} className="max-h-[70vh] w-full rounded-2xl object-contain shadow-2xl" />
-            )}
+            <div className="flex min-h-[300px] flex-1 items-center justify-center">
+              {loading || !src ? (
+                <div className="flex aspect-square w-full items-center justify-center text-sm text-white/50">
+                  Rendering…
+                </div>
+              ) : (
+                <img src={src} alt={`${SHOWCASE_LABELS[type]} showcase`} className="max-h-[70vh] w-full rounded-2xl object-contain shadow-2xl" />
+              )}
+            </div>
+
+            <button
+              onClick={() => go(1)}
+              aria-label="Next showcase"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center gap-1.5">
+            {SHOWCASE_TYPES.map((t) => (
+              <button
+                key={t}
+                onClick={() => onSwitch(t)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  t === type ? "gradient-purple text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
+                }`}
+              >
+                {SHOWCASE_LABELS[t]}
+              </button>
+            ))}
           </div>
 
           <button
-            onClick={() => go(1)}
-            aria-label="Next showcase"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            onClick={() => src && downloadDataUrl(src, filename)}
+            disabled={loading || !src}
+            className="gradient-purple rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            ›
+            Download PNG
           </button>
         </div>
 
-        <div className="flex items-center justify-center gap-1.5">
-          {SHOWCASE_TYPES.map((t) => (
-            <button
-              key={t}
-              onClick={() => onSwitch(t)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                t === type ? "gradient-purple text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
-              }`}
-            >
-              {SHOWCASE_LABELS[t]}
-            </button>
-          ))}
-        </div>
-
         {type === "hero" && (
-          <div className="flex flex-col gap-3 rounded-lg bg-white/5 p-3">
-            <label className="flex items-center gap-3 text-xs text-white/70">
-              <span className="w-20 shrink-0 font-semibold">Unit</span>
+          <div className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border-l border-white/10 bg-white/5 p-3">
+            <label className="flex flex-col gap-1.5 text-xs text-white/70">
+              <span className="font-semibold">Unit</span>
               <select
                 value={featuredUnitId ?? ""}
                 onChange={(e) => onSelectUnit(e.target.value)}
-                className="flex-1 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white outline-none"
+                className="rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white outline-none"
               >
                 <option value="">Auto (best unit)</option>
                 {units.map((u) => (
@@ -529,7 +561,7 @@ function ShowcasePreviewModal({
               </select>
             </label>
 
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <StatCheckbox label="Level" checked={visibleStats.level} onChange={() => onToggleStat("level")} />
               <StatCheckbox label="Gems" checked={visibleStats.gems} onChange={() => onToggleStat("gems")} />
               <StatCheckbox label="Traits" checked={visibleStats.traits} onChange={() => onToggleStat("traits")} />
@@ -545,13 +577,33 @@ function ShowcasePreviewModal({
           </div>
         )}
 
-        <button
-          onClick={() => src && downloadDataUrl(src, filename)}
-          disabled={loading || !src}
-          className="gradient-purple rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Download PNG
-        </button>
+        {type === "units" && (
+          <div className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border-l border-white/10 bg-white/5 p-3">
+            <p className="text-[11px] font-semibold text-white/50 uppercase">Tile size</p>
+            <PoseSlider
+              label="Columns"
+              min={3}
+              max={8}
+              value={unitColumns}
+              onChange={(columns) => onAdjustColumns("units", columns)}
+            />
+            <p className="text-[11px] text-white/40">Fewer columns = bigger unit tiles.</p>
+          </div>
+        )}
+
+        {type === "inventory" && (
+          <div className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border-l border-white/10 bg-white/5 p-3">
+            <p className="text-[11px] font-semibold text-white/50 uppercase">Tile size</p>
+            <PoseSlider
+              label="Columns"
+              min={3}
+              max={8}
+              value={itemColumns}
+              onChange={(columns) => onAdjustColumns("inventory", columns)}
+            />
+            <p className="text-[11px] text-white/40">Fewer columns = bigger item tiles.</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -588,17 +640,19 @@ function PoseSlider({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="flex items-center gap-3 text-xs text-white/70">
-      <span className="w-20 shrink-0 font-semibold">{label}</span>
+    <label className="flex flex-col gap-1 text-xs text-white/70">
+      <span className="flex items-center justify-between">
+        <span className="font-semibold">{label}</span>
+        <span className="tabular-nums">{value}</span>
+      </span>
       <input
         type="range"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-fuchsia-500"
+        className="w-full accent-fuchsia-500"
       />
-      <span className="w-10 shrink-0 text-right tabular-nums">{value}</span>
     </label>
   );
 }
