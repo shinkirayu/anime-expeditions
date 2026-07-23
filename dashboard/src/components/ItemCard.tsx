@@ -1,7 +1,8 @@
-import { fmtFullNum, rarityCardBg } from "../lib/format";
+import { fmtFullNum, rarityBoxStyle } from "../lib/format";
+import { wikiItemIconUrl } from "../lib/itemImages";
 import { AssetImage } from "./AssetImage";
 
-/** Blocky square item tile — echoes the game's own inventory tile style (colored by rarity, big qty badge, bold name). */
+/** Blocky square item tile — same rarity-box treatment as units (items.html uses the identical template). Icon fills nearly the whole tile; badge/name float on top of it. */
 export function ItemCard({
   name,
   amount,
@@ -16,21 +17,20 @@ export function ItemCard({
   fallback?: string;
 }) {
   return (
-    <div
-      className={`relative flex aspect-square flex-col items-center justify-between overflow-hidden rounded-2xl border-2 bg-gradient-to-b p-2 shadow-sm ${rarityCardBg(rarity)}`}
-    >
-      <span className="font-display self-start rounded-md bg-black/50 px-1.5 py-0.5 text-sm leading-none font-bold text-white">
-        ×{fmtFullNum(amount)}
-      </span>
+    <div style={rarityBoxStyle(rarity)} className="relative aspect-square overflow-hidden rounded-[11px]">
       <AssetImage
+        src={wikiItemIconUrl(name)}
         rbxAssetId={icon}
         alt={name}
-        className="size-11 drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
-        fallback={<span className="text-4xl">{fallback}</span>}
+        className="absolute inset-0 h-full w-full object-contain p-2.5 drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
+        fallback={<span className="absolute inset-0 flex items-center justify-center text-6xl">{fallback}</span>}
       />
-      <span className="font-display text-outline w-full truncate text-center text-sm font-semibold">
-        {name}
+      <span className="font-display absolute top-1.5 left-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-sm leading-none font-bold text-white">
+        ×{fmtFullNum(amount)}
       </span>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pt-5 pb-1 text-center">
+        <span className="font-display text-outline block truncate text-sm font-semibold">{name}</span>
+      </div>
     </div>
   );
 }

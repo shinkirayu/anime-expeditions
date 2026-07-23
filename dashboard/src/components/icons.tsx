@@ -2,6 +2,7 @@
 
 interface IconProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const base = {
@@ -13,9 +14,9 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
-export function SwordIcon({ className = "size-3.5" }: IconProps) {
+export function SwordIcon({ className = "size-3.5", style }: IconProps) {
   return (
-    <svg {...base} className={className}>
+    <svg {...base} className={className} style={style}>
       <line x1="19" y1="5" x2="9" y2="15" />
       <line x1="7" y1="13" x2="11" y2="17" />
       <line x1="9" y1="15" x2="5" y2="19" />

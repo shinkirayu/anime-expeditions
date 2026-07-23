@@ -52,36 +52,6 @@ export function rarityClass(rarity: string | undefined): string {
   return (rarity && RARITY_COLORS[rarity]) || "text-zinc-600 dark:text-zinc-300";
 }
 
-/** Card-background gradient + border per rarity, for the blocky item tiles. */
-export const RARITY_CARD_BG: Record<string, string> = {
-  Common: "from-zinc-400 to-zinc-600 border-zinc-400/50",
-  Uncommon: "from-green-400 to-green-700 border-green-400/50",
-  Rare: "from-blue-400 to-blue-700 border-blue-400/50",
-  Epic: "from-purple-400 to-purple-800 border-purple-400/50",
-  Legendary: "from-amber-400 to-orange-700 border-amber-400/50",
-  Mythic: "from-rose-400 to-fuchsia-800 border-rose-400/50",
-  Secret: "from-fuchsia-400 to-purple-900 border-fuchsia-400/50",
-};
-
-export function rarityCardBg(rarity: string | undefined): string {
-  return (rarity && RARITY_CARD_BG[rarity]) || "from-zinc-500 to-zinc-700 border-zinc-400/40";
-}
-
-/** Permanent glow shadow per rarity, matching RARITY_CARD_BG's dominant color. */
-export const RARITY_GLOW: Record<string, string> = {
-  Common: "shadow-[0_0_10px_rgba(161,161,170,0.45)]",
-  Uncommon: "shadow-[0_0_10px_rgba(74,222,128,0.45)]",
-  Rare: "shadow-[0_0_10px_rgba(96,165,250,0.45)]",
-  Epic: "shadow-[0_0_10px_rgba(192,132,252,0.45)]",
-  Legendary: "shadow-[0_0_10px_rgba(251,191,36,0.5)]",
-  Mythic: "shadow-[0_0_10px_rgba(251,113,133,0.5)]",
-  Secret: "shadow-[0_0_12px_rgba(232,121,249,0.55)]",
-};
-
-export function rarityGlow(rarity: string | undefined): string {
-  return (rarity && RARITY_GLOW[rarity]) || "shadow-[0_0_8px_rgba(161,161,170,0.35)]";
-}
-
 /** Rarity gradient color stops, copied 1:1 from the wiki's unit-box card styling (site.html). */
 export const RARITY_GRADIENT: Record<string, string> = {
   Rare: "rgb(0, 149, 255), rgb(25, 60, 235), rgb(0, 149, 255)",
@@ -92,25 +62,12 @@ export const RARITY_GRADIENT: Record<string, string> = {
   Secret: "rgb(255, 0, 0), rgb(90, 19, 19), rgb(255, 0, 0)",
 };
 
-/** Single solid color per rarity (first stop of RARITY_GRADIENT) — for glows/borders that can't use a gradient. */
-export const RARITY_SOLID: Record<string, string> = {
-  Rare: "rgb(0, 149, 255)",
-  Epic: "rgb(153, 10, 255)",
-  Legendary: "rgb(255, 203, 14)",
-  Mythic: "rgb(255, 84, 238)",
-  Exclusive: "rgb(183, 249, 255)",
-  Secret: "rgb(255, 0, 0)",
-};
-
-export function raritySolid(rarity: string | undefined): string {
-  return (rarity && RARITY_SOLID[rarity]) || "rgb(140, 140, 150)";
-}
-
 const WIKI_UNIT_BOX_TEXTURE = "https://static.wikitide.net/animeexpeditionswiki/0/00/EntityBox_Dark.png";
 
 /**
  * Layered background (vignette + wiki texture overlay + rarity gradient) that reproduces the
- * wiki's unit-box card, style-for-style, off site.html's `.style-338` rule.
+ * wiki's rarity box, style-for-style, off site.html's `.style-338` rule — the same template the
+ * wiki uses for both units (site.html) and items (items.html), confirmed identical byte-for-byte.
  */
 export function rarityBoxStyle(rarity: string | undefined): CSSProperties {
   const stops = (rarity && RARITY_GRADIENT[rarity]) || "rgb(140, 140, 150), rgb(70, 70, 80), rgb(140, 140, 150)";

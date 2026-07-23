@@ -4,15 +4,34 @@ import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useAccountRealtime } from "../hooks/useAccountsRealtime";
 import { isOnline, type UnitEntry } from "../lib/types";
 import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityBoxStyle, rarityClass, timeAgo } from "../lib/format";
-import { exportShowcaseImage } from "../lib/exportShowcase";
+import { downloadDataUrl, renderShowcasePng, showcaseFilename } from "../lib/exportShowcase";
 import { BarChart } from "../components/BarChart";
 import { AssetImage } from "../components/AssetImage";
-import { AccountShowcaseCard } from "../components/AccountShowcaseCard";
+import {
+  AccountShowcaseCard,
+  DEFAULT_POSE_TRANSFORM,
+  DEFAULT_VISIBLE_STATS,
+  type PoseTransform,
+  type VisibleStats,
+} from "../components/AccountShowcaseCard";
+import { CloseButton } from "../components/CloseButton";
+import { InventoryShowcaseCard } from "../components/InventoryShowcaseCard";
 import { ItemCard } from "../components/ItemCard";
+import { StatsShowcaseCard } from "../components/StatsShowcaseCard";
 import { StoryProgressBar } from "../components/StoryProgressBar";
 import { UnitIconImage } from "../components/UnitIconImage";
+import { UnitsShowcaseCard } from "../components/UnitsShowcaseCard";
 
 const UNIT_PAGE = 60;
+
+const SHOWCASE_TYPES = ["hero", "units", "inventory", "stats"] as const;
+type ShowcaseType = (typeof SHOWCASE_TYPES)[number];
+const SHOWCASE_LABELS: Record<ShowcaseType, string> = {
+  hero: "Hero",
+  units: "Units",
+  inventory: "Inventory",
+  stats: "Stats",
+};
 
 export default function AccountPage() {
   const params = useParams();
@@ -24,18 +43,66 @@ export default function AccountPage() {
   const [unitLimit, setUnitLimit] = useState(UNIT_PAGE);
   const [unitFilter, setUnitFilter] = useState("");
   const [exporting, setExporting] = useState(false);
-  const showcaseRef = useRef<HTMLDivElement>(null);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
+  const [showcaseType, setShowcaseType] = useState<ShowcaseType>("hero");
+  const [showcasePng, setShowcasePng] = useState<string | null>(null);
+  const [pose, setPose] = useState<PoseTransform>(DEFAULT_POSE_TRANSFORM);
+  const [visibleStats, setVisibleStats] = useState<VisibleStats>(DEFAULT_VISIBLE_STATS);
+  const [featuredUnitId, setFeaturedUnitId] = useState<string | null>(null);
+  const poseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function handleExportShowcase() {
-    if (!showcaseRef.current || !account) return;
+  const heroRef = useRef<HTMLDivElement>(null);
+  const unitsRef = useRef<HTMLDivElement>(null);
+  const inventoryRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const showcaseRefs: Record<ShowcaseType, React.RefObject<HTMLDivElement | null>> = {
+    hero: heroRef,
+    units: unitsRef,
+    inventory: inventoryRef,
+    stats: statsRef,
+  };
+
+  async function renderType(type: ShowcaseType) {
+    const node = showcaseRefs[type].current;
+    if (!node) return;
     setExporting(true);
     try {
-      await exportShowcaseImage(showcaseRef.current, account.username);
+      setShowcasePng(await renderShowcasePng(node));
     } catch (err) {
-      console.error("Showcase export failed", err);
+      console.error("Showcase render failed", err);
     } finally {
       setExporting(false);
     }
+  }
+
+  async function handleOpenShowcase() {
+    setShowcaseOpen(true);
+    await renderType(showcaseType);
+  }
+
+  async function handleSwitchShowcase(type: ShowcaseType) {
+    setShowcaseType(type);
+    setShowcasePng(null);
+    await renderType(type);
+  }
+
+  function adjustPose(patch: Partial<PoseTransform>) {
+    setPose((prev) => ({ ...prev, ...patch }));
+    if (poseDebounceRef.current) clearTimeout(poseDebounceRef.current);
+    poseDebounceRef.current = setTimeout(() => {
+      renderType("hero");
+    }, 250);
+  }
+
+  function toggleStat(key: keyof VisibleStats) {
+    setVisibleStats((prev) => ({ ...prev, [key]: !prev[key] }));
+    setTimeout(() => renderType("hero"), 50);
+  }
+
+  function selectFeaturedUnit(unitId: string) {
+    setFeaturedUnitId(unitId || null);
+    setPose(DEFAULT_POSE_TRANSFORM);
+    setTimeout(() => renderType("hero"), 50);
   }
 
   const units = useMemo(() => {
@@ -110,7 +177,7 @@ export default function AccountPage() {
           ← All accounts
         </Link>
         <button
-          onClick={handleExportShowcase}
+          onClick={handleOpenShowcase}
           disabled={exporting || details.isLoading}
           className="gradient-purple rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -322,9 +389,217 @@ export default function AccountPage() {
       )}
 
       <div className="pointer-events-none fixed top-0 -left-[9999px] opacity-0" aria-hidden="true">
-        <AccountShowcaseCard ref={showcaseRef} account={account} details={details.data} />
+        <AccountShowcaseCard
+          ref={heroRef}
+          account={account}
+          details={details.data}
+          pose={pose}
+          visibleStats={visibleStats}
+          unitId={featuredUnitId}
+        />
+        <UnitsShowcaseCard ref={unitsRef} account={account} details={details.data} />
+        <InventoryShowcaseCard ref={inventoryRef} account={account} details={details.data} />
+        <StatsShowcaseCard ref={statsRef} account={account} details={details.data} />
+      </div>
+
+      {showcaseOpen && (
+        <ShowcasePreviewModal
+          src={showcasePng}
+          loading={exporting}
+          type={showcaseType}
+          filename={showcaseFilename(account.username, showcaseType)}
+          onSwitch={handleSwitchShowcase}
+          pose={pose}
+          onAdjustPose={adjustPose}
+          visibleStats={visibleStats}
+          onToggleStat={toggleStat}
+          units={(details.data?.units ?? []) as UnitEntry[]}
+          featuredUnitId={featuredUnitId}
+          onSelectUnit={selectFeaturedUnit}
+          onClose={() => {
+            setShowcaseOpen(false);
+            setShowcasePng(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShowcasePreviewModal({
+  src,
+  loading,
+  type,
+  filename,
+  onSwitch,
+  pose,
+  onAdjustPose,
+  visibleStats,
+  onToggleStat,
+  units,
+  featuredUnitId,
+  onSelectUnit,
+  onClose,
+}: {
+  src: string | null;
+  loading: boolean;
+  type: ShowcaseType;
+  filename: string;
+  onSwitch: (type: ShowcaseType) => void;
+  pose: PoseTransform;
+  onAdjustPose: (patch: Partial<PoseTransform>) => void;
+  visibleStats: VisibleStats;
+  onToggleStat: (key: keyof VisibleStats) => void;
+  units: UnitEntry[];
+  featuredUnitId: string | null;
+  onSelectUnit: (unitId: string) => void;
+  onClose: () => void;
+}) {
+  const index = SHOWCASE_TYPES.indexOf(type);
+  const go = (delta: number) => {
+    const next = SHOWCASE_TYPES[(index + delta + SHOWCASE_TYPES.length) % SHOWCASE_TYPES.length];
+    onSwitch(next);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] max-w-[min(90vw,640px)] flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-sm font-semibold text-white">Showcase preview</h2>
+          <CloseButton onClick={onClose} />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => go(-1)}
+            aria-label="Previous showcase"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+          >
+            ‹
+          </button>
+
+          <div className="flex min-h-[300px] flex-1 items-center justify-center">
+            {loading || !src ? (
+              <div className="flex aspect-square w-full items-center justify-center text-sm text-white/50">
+                Rendering…
+              </div>
+            ) : (
+              <img src={src} alt={`${SHOWCASE_LABELS[type]} showcase`} className="max-h-[70vh] w-full rounded-2xl object-contain shadow-2xl" />
+            )}
+          </div>
+
+          <button
+            onClick={() => go(1)}
+            aria-label="Next showcase"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5">
+          {SHOWCASE_TYPES.map((t) => (
+            <button
+              key={t}
+              onClick={() => onSwitch(t)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                t === type ? "gradient-purple text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
+              }`}
+            >
+              {SHOWCASE_LABELS[t]}
+            </button>
+          ))}
+        </div>
+
+        {type === "hero" && (
+          <div className="flex flex-col gap-3 rounded-lg bg-white/5 p-3">
+            <label className="flex items-center gap-3 text-xs text-white/70">
+              <span className="w-20 shrink-0 font-semibold">Unit</span>
+              <select
+                value={featuredUnitId ?? ""}
+                onChange={(e) => onSelectUnit(e.target.value)}
+                className="flex-1 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white outline-none"
+              >
+                <option value="">Auto (best unit)</option>
+                {units.map((u) => (
+                  <option key={u.UniqueId} value={u.UniqueId}>
+                    {u.DisplayName || u.Asset} ({u.Rarity ?? "?"})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              <StatCheckbox label="Level" checked={visibleStats.level} onChange={() => onToggleStat("level")} />
+              <StatCheckbox label="Gems" checked={visibleStats.gems} onChange={() => onToggleStat("gems")} />
+              <StatCheckbox label="Traits" checked={visibleStats.traits} onChange={() => onToggleStat("traits")} />
+              <StatCheckbox label="Story completed" checked={visibleStats.story} onChange={() => onToggleStat("story")} />
+            </div>
+
+            <p className="text-[11px] font-semibold text-white/50 uppercase">
+              Pose art doesn't come framed the same for every unit — adjust it here
+            </p>
+            <PoseSlider label="Size" min={80} max={350} value={pose.size} onChange={(size) => onAdjustPose({ size })} />
+            <PoseSlider label="Horizontal" min={0} max={100} value={pose.x} onChange={(x) => onAdjustPose({ x })} />
+            <PoseSlider label="Vertical" min={0} max={100} value={pose.y} onChange={(y) => onAdjustPose({ y })} />
+          </div>
+        )}
+
+        <button
+          onClick={() => src && downloadDataUrl(src, filename)}
+          disabled={loading || !src}
+          className="gradient-purple rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Download PNG
+        </button>
       </div>
     </div>
+  );
+}
+
+function StatCheckbox({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-white/70">
+      <input type="checkbox" checked={checked} onChange={onChange} className="accent-fuchsia-500" />
+      {label}
+    </label>
+  );
+}
+
+function PoseSlider({
+  label,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 text-xs text-white/70">
+      <span className="w-20 shrink-0 font-semibold">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 accent-fuchsia-500"
+      />
+      <span className="w-10 shrink-0 text-right tabular-nums">{value}</span>
+    </label>
   );
 }
 
