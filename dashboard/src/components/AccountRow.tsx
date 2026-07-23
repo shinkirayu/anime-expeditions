@@ -6,6 +6,7 @@ import { fmtNum, getCurrencyEntry, getLocationLabel, timeAgo } from "../lib/form
 import { BackpackIcon, SwordIcon } from "./icons";
 import { AssetImage } from "./AssetImage";
 import { MiniProgressBar } from "./MiniProgressBar";
+import { StageBadge } from "./StageBadge";
 
 /** Memoized so a realtime patch to one row never re-renders the whole table. */
 export const AccountRow = memo(function AccountRow({
@@ -53,6 +54,9 @@ export const AccountRow = memo(function AccountRow({
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <MiniProgressBar percent={account.progress?.Story?.Percent} completed={account.progress?.Story?.Completed} />
+      </td>
+      <td className="px-3 py-2.5 text-center align-middle">
+        <StageBadge story={account.progress?.Raid} />
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <button
