@@ -9,7 +9,7 @@ export function StageBadge({ story }: { story: StoryProgress | null | undefined 
         className="font-display text-xs font-semibold text-zinc-400 dark:text-zinc-500"
         title={story.RequiredLevel ? `Unlocks at level ${story.RequiredLevel}` : "Locked"}
       >
-        🔒{story.RequiredLevel ? ` Lvl ${story.RequiredLevel}` : ""}
+        🔒
       </span>
     );
   }

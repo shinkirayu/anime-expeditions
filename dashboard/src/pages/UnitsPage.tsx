@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAllUnits, type AggregatedUnit } from "../hooks/useAllUnits";
+import { useAllUnits, type AggregatedUnit, type OwnedUnit } from "../hooks/useAllUnits";
 import { rarityCardBg, rarityClass } from "../lib/format";
 import { SearchIcon, SwordIcon } from "../components/icons";
 import { Dropdown } from "../components/Dropdown";
@@ -122,7 +122,40 @@ export default function UnitsPage() {
   );
 }
 
+interface GroupedOwner {
+  key: string;
+  account: OwnedUnit;
+  count: number;
+  equippedAny: boolean;
+}
+
+/**
+ * Same account can own several copies of this unit. Combine copies into one
+ * row unless they differ in Trait or Level — those differences are the only
+ * ones worth calling out separately.
+ */
+function groupOwners(owners: OwnedUnit[]): GroupedOwner[] {
+  const map = new Map<string, GroupedOwner>();
+  for (const o of owners) {
+    const key = `${o.user_id}::${o.Level ?? ""}::${o.Trait?.DisplayName ?? ""}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (o.Equipped) existing.equippedAny = true;
+    } else {
+      map.set(key, { key, account: o, count: 1, equippedAny: !!o.Equipped });
+    }
+  }
+  return Array.from(map.values());
+}
+
 function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () => void }) {
+  const groupedOwners = useMemo(() => groupOwners(unit.owners), [unit.owners]);
+  const accountCount = useMemo(
+    () => new Set(unit.owners.map((o) => o.user_id)).size,
+    [unit.owners],
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
@@ -133,28 +166,28 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
           <div>
             <h2 className="font-display font-semibold">{unit.displayName}</h2>
             <p className={`text-xs font-medium ${rarityClass(unit.rarity)}`}>
-              {unit.rarity ?? "Unknown"} · {unit.owners.length} accounts
+              {unit.rarity ?? "Unknown"} · {accountCount} accounts
             </p>
           </div>
           <CloseButton onClick={onClose} />
         </div>
         <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3">
-          {unit.owners.map((o) => (
+          {groupedOwners.map(({ key, account: o, count, equippedAny }) => (
             <Link
-              key={o.UniqueId}
+              key={key}
               to={`/account/${o.user_id}`}
               className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm transition-colors hover:border-fuchsia-400 dark:border-white/5 dark:bg-white/[0.04] dark:hover:border-fuchsia-500/50"
             >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{o.display_name || o.username}</span>
+              <span className="flex min-w-0 items-baseline gap-1.5">
+                <span className="truncate font-medium">{o.display_name || o.username}</span>
                 {o.Trait?.DisplayName && (
-                  <span className={`block truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
-                    {o.Trait.DisplayName}
+                  <span className={`shrink-0 truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
+                    · {o.Trait.DisplayName}
                   </span>
                 )}
               </span>
               <span className="ml-2 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
-                Lv {o.Level ?? "—"} {o.Equipped ? "· equipped" : ""}
+                Lv {o.Level ?? "—"} {equippedAny ? "· equipped" : ""} {count > 1 ? `×${count}` : ""}
               </span>
             </Link>
           ))}
