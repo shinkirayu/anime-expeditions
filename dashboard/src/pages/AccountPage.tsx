@@ -1,13 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useAccountRealtime } from "../hooks/useAccountsRealtime";
 import { isOnline, type UnitEntry } from "../lib/types";
-import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityClass, timeAgo } from "../lib/format";
+import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityBoxStyle, rarityClass, timeAgo } from "../lib/format";
+import { exportShowcaseImage } from "../lib/exportShowcase";
 import { BarChart } from "../components/BarChart";
 import { AssetImage } from "../components/AssetImage";
+import { AccountShowcaseCard } from "../components/AccountShowcaseCard";
 import { ItemCard } from "../components/ItemCard";
 import { StoryProgressBar } from "../components/StoryProgressBar";
+import { UnitIconImage } from "../components/UnitIconImage";
 
 const UNIT_PAGE = 60;
 
@@ -20,6 +23,20 @@ export default function AccountPage() {
 
   const [unitLimit, setUnitLimit] = useState(UNIT_PAGE);
   const [unitFilter, setUnitFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const showcaseRef = useRef<HTMLDivElement>(null);
+
+  async function handleExportShowcase() {
+    if (!showcaseRef.current || !account) return;
+    setExporting(true);
+    try {
+      await exportShowcaseImage(showcaseRef.current, account.username);
+    } catch (err) {
+      console.error("Showcase export failed", err);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const units = useMemo(() => {
     const all = (details.data?.units ?? []) as UnitEntry[];
@@ -88,9 +105,18 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="text-sm font-medium text-fuchsia-600 hover:underline dark:text-fuchsia-400">
-        ← All accounts
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/" className="text-sm font-medium text-fuchsia-600 hover:underline dark:text-fuchsia-400">
+          ← All accounts
+        </Link>
+        <button
+          onClick={handleExportShowcase}
+          disabled={exporting || details.isLoading}
+          className="gradient-purple rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {exporting ? "Exporting…" : "Export showcase"}
+        </button>
+      </div>
 
       {/* Header */}
       <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
@@ -220,7 +246,17 @@ export default function AccountPage() {
                       key={u.UniqueId}
                       className="cv-auto border-b border-zinc-100 last:border-0 dark:border-white/[0.04]"
                     >
-                      <td className="truncate px-2 py-2 font-medium">{u.DisplayName || u.Asset}</td>
+                      <td className="truncate px-2 py-2 font-medium">
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            style={rarityBoxStyle(u.Rarity)}
+                            className="size-6 shrink-0 overflow-hidden rounded-[7px] p-0.5"
+                          >
+                            <UnitIconImage displayName={u.DisplayName} />
+                          </span>
+                          <span className="truncate">{u.DisplayName || u.Asset}</span>
+                        </span>
+                      </td>
                       <td className={`px-2 py-2 text-center ${rarityClass(u.Rarity)}`}>{u.Rarity ?? "—"}</td>
                       <td className={`truncate px-2 py-2 text-center ${rarityClass(u.Trait?.Rarity)}`}>
                         {u.Trait?.DisplayName ?? "—"}
@@ -284,6 +320,10 @@ export default function AccountPage() {
           </div>
         </Section>
       )}
+
+      <div className="pointer-events-none fixed top-0 -left-[9999px] opacity-0" aria-hidden="true">
+        <AccountShowcaseCard ref={showcaseRef} account={account} details={details.data} />
+      </div>
     </div>
   );
 }

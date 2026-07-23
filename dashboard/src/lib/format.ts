@@ -1,3 +1,14 @@
+import type { CSSProperties } from "react";
+
+/** Best-to-worst rarity order — used for "sort by rarity" and "best unit first" everywhere. */
+export const RARITY_ORDER = ["Secret", "Mythic", "Legendary", "Epic", "Rare"];
+
+/** Index into RARITY_ORDER, unknown/absent rarities sort last. */
+export function rarityRank(rarity: string | undefined): number {
+  const i = rarity ? RARITY_ORDER.indexOf(rarity) : -1;
+  return i === -1 ? RARITY_ORDER.length : i;
+}
+
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const full = new Intl.NumberFormat("en");
 
@@ -56,6 +67,61 @@ export function rarityCardBg(rarity: string | undefined): string {
   return (rarity && RARITY_CARD_BG[rarity]) || "from-zinc-500 to-zinc-700 border-zinc-400/40";
 }
 
+/** Permanent glow shadow per rarity, matching RARITY_CARD_BG's dominant color. */
+export const RARITY_GLOW: Record<string, string> = {
+  Common: "shadow-[0_0_10px_rgba(161,161,170,0.45)]",
+  Uncommon: "shadow-[0_0_10px_rgba(74,222,128,0.45)]",
+  Rare: "shadow-[0_0_10px_rgba(96,165,250,0.45)]",
+  Epic: "shadow-[0_0_10px_rgba(192,132,252,0.45)]",
+  Legendary: "shadow-[0_0_10px_rgba(251,191,36,0.5)]",
+  Mythic: "shadow-[0_0_10px_rgba(251,113,133,0.5)]",
+  Secret: "shadow-[0_0_12px_rgba(232,121,249,0.55)]",
+};
+
+export function rarityGlow(rarity: string | undefined): string {
+  return (rarity && RARITY_GLOW[rarity]) || "shadow-[0_0_8px_rgba(161,161,170,0.35)]";
+}
+
+/** Rarity gradient color stops, copied 1:1 from the wiki's unit-box card styling (site.html). */
+export const RARITY_GRADIENT: Record<string, string> = {
+  Rare: "rgb(0, 149, 255), rgb(25, 60, 235), rgb(0, 149, 255)",
+  Epic: "rgb(153, 10, 255), rgb(76, 39, 154)",
+  Legendary: "rgb(255, 203, 14) 10%, rgb(218, 118, 4), rgb(255, 203, 14) 80%",
+  Mythic: "rgb(255, 7, 7), rgb(247, 221, 27), rgb(93, 229, 30), rgb(43, 174, 194), rgb(97, 61, 206), rgb(255, 84, 238)",
+  Exclusive: "rgb(183, 249, 255), rgb(225, 178, 255), rgb(183, 249, 255)",
+  Secret: "rgb(255, 0, 0), rgb(90, 19, 19), rgb(255, 0, 0)",
+};
+
+/** Single solid color per rarity (first stop of RARITY_GRADIENT) — for glows/borders that can't use a gradient. */
+export const RARITY_SOLID: Record<string, string> = {
+  Rare: "rgb(0, 149, 255)",
+  Epic: "rgb(153, 10, 255)",
+  Legendary: "rgb(255, 203, 14)",
+  Mythic: "rgb(255, 84, 238)",
+  Exclusive: "rgb(183, 249, 255)",
+  Secret: "rgb(255, 0, 0)",
+};
+
+export function raritySolid(rarity: string | undefined): string {
+  return (rarity && RARITY_SOLID[rarity]) || "rgb(140, 140, 150)";
+}
+
+const WIKI_UNIT_BOX_TEXTURE = "https://static.wikitide.net/animeexpeditionswiki/0/00/EntityBox_Dark.png";
+
+/**
+ * Layered background (vignette + wiki texture overlay + rarity gradient) that reproduces the
+ * wiki's unit-box card, style-for-style, off site.html's `.style-338` rule.
+ */
+export function rarityBoxStyle(rarity: string | undefined): CSSProperties {
+  const stops = (rarity && RARITY_GRADIENT[rarity]) || "rgb(140, 140, 150), rgb(70, 70, 80), rgb(140, 140, 150)";
+  return {
+    backgroundImage: `radial-gradient(circle, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0.25) 100%), url('${WIKI_UNIT_BOX_TEXTURE}'), linear-gradient(135deg, ${stops})`,
+    backgroundSize: "cover, 91%, 99% 99%",
+    backgroundPosition: "50% 50%",
+    backgroundRepeat: "no-repeat",
+  };
+}
+
 interface CurrencyLike {
   Amount: number;
   DisplayName?: string;
@@ -80,6 +146,17 @@ export function getCurrencyEntry(
 /** Gems is the game's main currency; pull it out of the currencies bag by name. */
 export function getGemsAmount(currencies: Record<string, CurrencyLike> | null | undefined): number {
   return getCurrencyEntry(currencies, "gem")?.Amount ?? 0;
+}
+
+/** Scan the raw `stats` bag for the first numeric field whose key contains any of `needles` (case-insensitive). */
+export function findStatValue(stats: Record<string, unknown> | null | undefined, needles: string[]): number | undefined {
+  if (!stats) return undefined;
+  for (const [key, value] of Object.entries(stats)) {
+    if (typeof value !== "number") continue;
+    const lower = key.toLowerCase();
+    if (needles.some((n) => lower.includes(n))) return value;
+  }
+  return undefined;
 }
 
 const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];

@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { useAccountDetails } from "../hooks/useAccountDetail";
-import { fmtNum, rarityClass } from "../lib/format";
+import { fmtNum, rarityBoxStyle, rarityClass } from "../lib/format";
 import type { AccountListRow, UnitEntry } from "../lib/types";
 import { CloseButton } from "./CloseButton";
+import { UnitIconImage } from "./UnitIconImage";
 
 export function UnitsModal({ account, onClose }: { account: AccountListRow; onClose: () => void }) {
   const details = useAccountDetails(account.user_id);
@@ -57,7 +58,17 @@ export function UnitsModal({ account, onClose }: { account: AccountListRow; onCl
               <tbody>
                 {units.map((u) => (
                   <tr key={u.UniqueId} className="border-b border-zinc-100 last:border-0 dark:border-white/[0.04]">
-                    <td className="truncate px-2 py-2 font-medium">{u.DisplayName || u.Asset}</td>
+                    <td className="truncate px-2 py-2 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          style={rarityBoxStyle(u.Rarity)}
+                          className="size-6 shrink-0 overflow-hidden rounded-[7px] p-0.5"
+                        >
+                          <UnitIconImage displayName={u.DisplayName} />
+                        </span>
+                        <span className="truncate">{u.DisplayName || u.Asset}</span>
+                      </span>
+                    </td>
                     <td className={`px-2 py-2 text-center ${rarityClass(u.Rarity)}`}>{u.Rarity ?? "—"}</td>
                     <td className={`truncate px-2 py-2 text-center ${rarityClass(u.Trait?.Rarity)}`}>
                       {u.Trait?.DisplayName ?? "—"}

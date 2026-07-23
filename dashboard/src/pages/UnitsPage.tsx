@@ -1,46 +1,27 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAllUnits, type AggregatedUnit, type OwnedUnit } from "../hooks/useAllUnits";
-import { rarityCardBg, rarityClass } from "../lib/format";
-import { SearchIcon, SwordIcon } from "../components/icons";
-import { Dropdown } from "../components/Dropdown";
+import { RARITY_ORDER, rarityBoxStyle, rarityClass } from "../lib/format";
+import { StarIcon, SwordIcon } from "../components/icons";
 import { CloseButton } from "../components/CloseButton";
-
-const RARITY_ORDER = ["Secret", "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"];
-
-type SortMode = "count" | "rarity" | "name";
-
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "count", label: "Most owned" },
-  { value: "rarity", label: "Rarity" },
-  { value: "name", label: "Name" },
-];
+import { UnitIconImage } from "../components/UnitIconImage";
 
 export default function UnitsPage() {
   const { data: units, isLoading, isError } = useAllUnits();
-  const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<SortMode>("rarity");
+  const [rarityFilter, setRarityFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<AggregatedUnit | null>(null);
 
   const filtered = useMemo(() => {
     const all = units ?? [];
-    const term = filter.trim().toLowerCase();
-    const list = (
-      term
-        ? all.filter((u) => `${u.displayName} ${u.rarity ?? ""} ${u.element ?? ""}`.toLowerCase().includes(term))
-        : all.slice()
-    );
+    const list = rarityFilter ? all.filter((u) => u.rarity === rarityFilter) : all.slice();
 
     return list.sort((a, b) => {
-      if (sort === "rarity") {
-        const ai = RARITY_ORDER.indexOf(a.rarity ?? "");
-        const bi = RARITY_ORDER.indexOf(b.rarity ?? "");
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-      }
-      if (sort === "name") return a.displayName.localeCompare(b.displayName);
-      return b.owners.length - a.owners.length;
+      const ai = RARITY_ORDER.indexOf(a.rarity ?? "");
+      const bi = RARITY_ORDER.indexOf(b.rarity ?? "");
+      const rarityDiff = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      return rarityDiff !== 0 ? rarityDiff : a.displayName.localeCompare(b.displayName);
     });
-  }, [units, filter, sort]);
+  }, [units, rarityFilter]);
 
   return (
     <div className="space-y-6">
@@ -51,26 +32,29 @@ export default function UnitsPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:flex-row sm:items-center dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
-        <div className="relative w-full sm:max-w-xs">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="search"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter units…"
-            className="w-full rounded-lg border border-zinc-200 bg-transparent py-2 pr-3 pl-9 text-sm outline-none focus:border-fuchsia-400 dark:border-zinc-700"
-          />
-        </div>
-        <div className="sm:ml-auto">
-          <Dropdown<SortMode>
-            value={sort}
-            options={SORT_OPTIONS}
-            onChange={setSort}
-            label="Sort"
-            ariaLabel="Sort units"
-          />
-        </div>
+      <div className="flex flex-wrap justify-end gap-1.5">
+        <button
+          onClick={() => setRarityFilter(null)}
+          className={`rounded-md border px-3 py-1 text-xs font-semibold transition-colors ${
+            rarityFilter === null
+              ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
+              : "border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:border-white/10 dark:text-zinc-400 dark:hover:border-white/25"
+          }`}
+        >
+          All
+        </button>
+        {RARITY_ORDER.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRarityFilter((cur) => (cur === r ? null : r))}
+            style={rarityBoxStyle(r)}
+            className={`font-display text-outline rounded-md px-3 py-1 text-xs font-bold text-white transition-all ${
+              rarityFilter === r ? "scale-105 opacity-100 ring-2 ring-white/90" : "opacity-60 hover:opacity-90"
+            }`}
+          >
+            {r}
+          </button>
+        ))}
       </div>
 
       {isError && (
@@ -98,13 +82,27 @@ export default function UnitsPage() {
             <button
               key={u.key}
               onClick={() => setSelected(u)}
-              className={`relative flex aspect-square flex-col items-center justify-between overflow-hidden rounded-xl border-2 bg-gradient-to-b p-1.5 text-left shadow-sm transition-transform hover:scale-[1.05] hover:shadow-[0_0_12px_rgba(129,19,255,0.35)] ${rarityCardBg(u.rarity)}`}
+              style={rarityBoxStyle(u.rarity)}
+              className="relative flex aspect-square flex-col items-center justify-between overflow-hidden rounded-[11px] p-1.5 text-left transition-transform hover:scale-[1.05]"
             >
-              <span className="font-display self-start rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none font-bold text-white">
+              <UnitIconImage
+                displayName={u.displayName}
+                className="absolute inset-0 translate-y-[-2%] object-cover opacity-90 [clip-path:inset(0_0_0%_0)]"
+                fallback={
+                  <SwordIcon className="mt-3 size-5 text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
+                }
+              />
+              <span className="font-display relative self-start rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none font-bold text-white">
                 {u.owners.length}
               </span>
-              <SwordIcon className="size-5 text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
-              <div className="w-full text-center">
+              {u.displayName.includes("(") && (
+                <span className="absolute top-1 right-1 flex gap-px text-amber-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
+                  <StarIcon className="size-2.5" />
+                  <StarIcon className="size-2.5" />
+                  <StarIcon className="size-2.5" />
+                </span>
+              )}
+              <div className="relative mt-auto w-full bg-gradient-to-t from-black/70 to-transparent text-center">
                 <div className="font-display text-outline truncate text-[11px] font-semibold">
                   {u.displayName}
                 </div>
@@ -163,11 +161,22 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-fuchsia-500/10">
-          <div>
-            <h2 className="font-display font-semibold">{unit.displayName}</h2>
-            <p className={`text-xs font-medium ${rarityClass(unit.rarity)}`}>
-              {unit.rarity ?? "Unknown"} · {accountCount} accounts
-            </p>
+          <div className="flex items-center gap-3">
+            <div
+              style={rarityBoxStyle(unit.rarity)}
+              className="size-12 shrink-0 overflow-hidden rounded-[11px] p-1"
+            >
+              <UnitIconImage
+                displayName={unit.displayName}
+                fallback={<SwordIcon className="m-auto mt-3 size-5 text-white/85" />}
+              />
+            </div>
+            <div>
+              <h2 className="font-display font-semibold">{unit.displayName}</h2>
+              <p className={`text-xs font-medium ${rarityClass(unit.rarity)}`}>
+                {unit.rarity ?? "Unknown"} · {accountCount} accounts
+              </p>
+            </div>
           </div>
           <CloseButton onClick={onClose} />
         </div>

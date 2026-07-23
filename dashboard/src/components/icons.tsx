@@ -23,6 +23,14 @@ export function SwordIcon({ className = "size-3.5" }: IconProps) {
   );
 }
 
+export function StarIcon({ className = "size-3.5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M12 2.5l2.86 6.24 6.64.66-5.04 4.62 1.46 6.98L12 17.77l-5.92 3.23 1.46-6.98-5.04-4.62 6.64-.66z" />
+    </svg>
+  );
+}
+
 export function BackpackIcon({ className = "size-3.5" }: IconProps) {
   return (
     <svg {...base} className={className}>
