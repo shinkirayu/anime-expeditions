@@ -113,7 +113,7 @@ export const ACCOUNT_LIST_COLUMNS =
 export const PAGE_SIZE = 30;
 
 /** An account is "online" if the tracker reported within this window. */
-export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
 
 export function isOnline(lastSeen: string): boolean {
   return Date.now() - new Date(lastSeen).getTime() < ONLINE_WINDOW_MS;

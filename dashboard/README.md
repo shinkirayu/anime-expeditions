@@ -118,5 +118,5 @@ supabase/
 
 - Refresh cadence: `REFRESH` in `src/lib/queryClient.ts`.
 - Page size: `PAGE_SIZE` in `src/lib/types.ts`.
-- Online window (2 min): `ONLINE_WINDOW_MS` in `src/lib/types.ts` — keep it in
-  sync with the `interval '2 minutes'` in `get_dashboard_stats()`.
+- Online window (3 min): `ONLINE_WINDOW_MS` in `src/lib/types.ts` — keep it in
+  sync with the `interval '3 minutes'` in `get_dashboard_stats()`.
