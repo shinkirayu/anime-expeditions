@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAllUnits, type AggregatedUnit, type OwnedUnit } from "../hooks/useAllUnits";
+import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
+import { useDeleteAccounts } from "../hooks/useDeleteAccounts";
 import { RARITY_ORDER, rarityBoxStyle, rarityClass } from "../lib/format";
+import { ensureWarning } from "../lib/eldorado";
+import { buildDefaultDescription, buildDefaultTitle } from "../lib/eldoradoDescribe";
 import { StarIcon, SwordIcon } from "../components/icons";
 import { CloseButton } from "../components/CloseButton";
+import { EldoradoListingModal } from "../components/EldoradoListingModal";
 import { UnitIconImage } from "../components/UnitIconImage";
 
 export default function UnitsPage() {
@@ -148,11 +153,88 @@ function groupOwners(owners: OwnedUnit[]): GroupedOwner[] {
 }
 
 function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () => void }) {
-  const groupedOwners = useMemo(() => groupOwners(unit.owners), [unit.owners]);
-  const accountCount = useMemo(
-    () => new Set(unit.owners.map((o) => o.user_id)).size,
-    [unit.owners],
+  const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [lastIndex, setLastIndex] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [eldoradoOpen, setEldoradoOpen] = useState(false);
+  const deleteAccounts = useDeleteAccounts();
+
+  // Only fetch full account data (for the showcase auto-attach) when exactly one account is selected.
+  const soloUserId = selected.size === 1 ? [...selected][0] : null;
+  const soloAccount = useAccount(soloUserId);
+  const soloDetails = useAccountDetails(soloUserId);
+
+  const activeOwners = useMemo(
+    () => unit.owners.filter((o) => !removedIds.has(o.user_id)),
+    [unit.owners, removedIds],
   );
+  const groupedOwners = useMemo(() => groupOwners(activeOwners), [activeOwners]);
+  const accountCount = useMemo(
+    () => new Set(activeOwners.map((o) => o.user_id)).size,
+    [activeOwners],
+  );
+  const usernameByUserId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const o of activeOwners) if (!map.has(o.user_id)) map.set(o.user_id, o.username);
+    return map;
+  }, [activeOwners]);
+
+  function toggleOne(userId: number, index: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+    setLastIndex(index);
+  }
+
+  function handleRowClick(e: React.MouseEvent, index: number, userId: number) {
+    if (e.shiftKey) {
+      e.preventDefault();
+      const anchor = lastIndex ?? index;
+      const [start, end] = anchor < index ? [anchor, index] : [index, anchor];
+      const ids = groupedOwners.slice(start, end + 1).map((g) => g.account.user_id);
+      setSelected((prev) => new Set([...prev, ...ids]));
+      setLastIndex(index);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggleOne(userId, index);
+    }
+  }
+
+  function handleCopy() {
+    const names = [...selected].map((id) => usernameByUserId.get(id)).filter((n): n is string => !!n);
+    if (names.length === 0) return;
+    navigator.clipboard.writeText(names.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  function buildEldoradoAccounts(): string[] {
+    return [...selected]
+      .map((id) => usernameByUserId.get(id))
+      .filter((n): n is string => !!n)
+      .map((username) => ensureWarning(`Roblox username: ${username}\nUser: \nPass: `));
+  }
+
+  function handleDelete() {
+    const ids = [...selected];
+    const names = ids.map((id) => usernameByUserId.get(id)).filter((n): n is string => !!n);
+    const ok = window.confirm(
+      `Stop tracking ${ids.length} account${ids.length > 1 ? "s" : ""}?\n\n${names.join(", ")}\n\nThis removes them from the dashboard entirely and cannot be undone.`,
+    );
+    if (!ok) return;
+    deleteAccounts.mutate(ids, {
+      onSuccess: () => {
+        setRemovedIds((prev) => new Set([...prev, ...ids]));
+        setSelected(new Set());
+      },
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -180,28 +262,99 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
           </div>
           <CloseButton onClick={onClose} />
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex items-center justify-between gap-2 border-b border-fuchsia-200 bg-fuchsia-50 px-4 py-2 dark:border-fuchsia-500/15 dark:bg-fuchsia-500/10">
+            <span className="text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300">
+              {selected.size} selected
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setEldoradoOpen(true)}
+                className="rounded-md border border-fuchsia-300 bg-white px-2 py-1 text-[11px] font-semibold text-fuchsia-600 transition-colors hover:border-fuchsia-400 dark:border-fuchsia-500/40 dark:bg-white/5 dark:text-fuchsia-400"
+              >
+                List on Eldorado
+              </button>
+              <button
+                onClick={handleCopy}
+                className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:border-fuchsia-400 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
+              >
+                {copied ? "Copied!" : "Copy usernames"}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteAccounts.isPending}
+                className="rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-600 transition-colors hover:border-red-400 disabled:opacity-50 dark:border-red-500/25 dark:bg-white/5 dark:text-red-400"
+              >
+                {deleteAccounts.isPending ? "Deleting…" : "Delete"}
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3">
-          {groupedOwners.map(({ key, account: o, count, equippedAny }) => (
-            <Link
-              key={key}
-              to={`/account/${o.user_id}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm transition-colors hover:border-fuchsia-400 dark:border-white/5 dark:bg-white/[0.04] dark:hover:border-fuchsia-500/50"
-            >
-              <span className="flex min-w-0 items-baseline gap-1.5">
-                <span className="truncate font-medium">{o.display_name || o.username}</span>
-                {o.Trait?.DisplayName && (
-                  <span className={`shrink-0 truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
-                    · {o.Trait.DisplayName}
+          {groupedOwners.length === 0 ? (
+            <p className="p-4 text-center text-sm text-zinc-500 dark:text-zinc-400">No accounts left.</p>
+          ) : (
+            groupedOwners.map(({ key, account: o, count, equippedAny }, index) => (
+              <Link
+                key={key}
+                to={`/account/${o.user_id}`}
+                onClick={(e) => handleRowClick(e, index, o.user_id)}
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  selected.has(o.user_id)
+                    ? "border-fuchsia-400 bg-fuchsia-50 dark:border-fuchsia-500/60 dark:bg-fuchsia-500/10"
+                    : "border-zinc-200 bg-zinc-50 hover:border-fuchsia-400 dark:border-white/5 dark:bg-white/[0.04] dark:hover:border-fuchsia-500/50"
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(o.user_id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleOne(o.user_id, index)}
+                    className="size-3.5 shrink-0 accent-fuchsia-500"
+                    aria-label={`Select ${o.username}`}
+                  />
+                  <span className="flex min-w-0 items-baseline gap-1.5">
+                    <span className="truncate font-medium">{o.display_name || o.username}</span>
+                    {o.Trait?.DisplayName && (
+                      <span className={`shrink-0 truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
+                        · {o.Trait.DisplayName}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              <span className="ml-2 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
-                Lv {o.Level ?? "—"} {equippedAny ? "· equipped" : ""} {count > 1 ? `×${count}` : ""}
-              </span>
-            </Link>
-          ))}
+                </span>
+                <span className="ml-2 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+                  Lv {o.Level ?? "—"} {equippedAny ? "· equipped" : ""} {count > 1 ? `×${count}` : ""}
+                </span>
+              </Link>
+            ))
+          )}
         </div>
       </div>
+
+      {eldoradoOpen && (
+        <EldoradoListingModal
+          initialTitle={
+            soloAccount.data ? buildDefaultTitle(soloAccount.data) : `${unit.displayName} owners — ${selected.size || accountCount} accounts`
+          }
+          initialDescription={
+            soloAccount.data
+              ? buildDefaultDescription(soloAccount.data, soloDetails.data)
+              : `Anime Expeditions accounts that own ${unit.displayName}${unit.rarity ? ` (${unit.rarity})` : ""}.`
+          }
+          initialAccounts={selected.size > 0 ? buildEldoradoAccounts() : undefined}
+          showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
+          onClose={() => setEldoradoOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -6,14 +6,17 @@ import { supabase } from "./lib/supabase";
 import { useSession } from "./hooks/useAuth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { GetScriptButton } from "./components/GetScriptButton";
 import { SkeletonGrid } from "./components/Skeletons";
+import { ToastProvider } from "./components/Toast";
+import { EldoradoQueueProvider } from "./lib/eldoradoQueue";
 
 // Route-level code splitting: the detail page ships in its own chunk.
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
-const SetupPage = lazy(() => import("./pages/SetupPage"));
 const UnitsPage = lazy(() => import("./pages/UnitsPage"));
+const EldoradoPage = lazy(() => import("./pages/EldoradoPage"));
 
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
@@ -49,10 +52,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-1">
             <NavItem to="/">Accounts</NavItem>
             <NavItem to="/units">Units</NavItem>
-            <NavItem to="/setup">Get script</NavItem>
+            <NavItem to="/eldorado">Eldorado</NavItem>
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
+            <GetScriptButton />
             <button
               onClick={() => supabase.auth.signOut()}
               className="rounded-full px-3.5 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
@@ -91,7 +95,7 @@ function Gate() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/account/:userId" element={<AccountPage />} />
           <Route path="/units" element={<UnitsPage />} />
-          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/eldorado" element={<EldoradoPage />} />
           <Route path="*" element={<DashboardPage />} />
         </Routes>
       </Suspense>
@@ -103,9 +107,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Gate />
-        </BrowserRouter>
+        <ToastProvider>
+          <EldoradoQueueProvider>
+            <BrowserRouter>
+              <Gate />
+            </BrowserRouter>
+          </EldoradoQueueProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

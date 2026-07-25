@@ -17,12 +17,18 @@ export function Dropdown<T extends string>({
   onChange,
   label,
   ariaLabel,
+  fullWidth,
+  placeholder,
 }: {
   value: T;
   options: DropdownOption<T>[];
   onChange: (v: T) => void;
   label: string;
   ariaLabel: string;
+  /** Renders as a full-width form field ("Select a game…") instead of the compact "Label: value" chip. */
+  fullWidth?: boolean;
+  /** Shown when `value` doesn't match any option (fullWidth mode only). */
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -44,20 +50,32 @@ export function Dropdown<T extends string>({
   const current = options.find((o) => o.value === value);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`relative ${fullWidth ? "w-full" : ""}`}>
       <button
         type="button"
         aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-transparent px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+        className={
+          fullWidth
+            ? "flex w-full items-center justify-between gap-1.5 rounded-lg border border-zinc-200 bg-white p-2 text-left text-sm text-zinc-900 outline-none focus:border-fuchsia-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            : "flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-transparent px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+        }
       >
-        {label}: {current?.label ?? ""}
-        <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`}>
+        {fullWidth ? (
+          <span className={current ? "" : "text-zinc-400 dark:text-zinc-500"}>{current?.label ?? placeholder ?? ""}</span>
+        ) : (
+          <>{label}: {current?.label ?? ""}</>
+        )}
+        <svg viewBox="0 0 24 24" className={`size-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>
           <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full right-0 z-20 mt-1 min-w-full overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-fuchsia-500/15 dark:bg-[#1a1424]">
+        <div
+          className={`absolute top-full z-20 mt-1 max-h-64 min-w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-fuchsia-500/15 dark:bg-[#1a1424] ${
+            fullWidth ? "left-0" : "right-0"
+          }`}
+        >
           {options.map((o) => (
             <button
               key={o.value}
