@@ -3,6 +3,7 @@ import { useToast } from "../Toast";
 import { Dropdown } from "../Dropdown";
 import { ShowcaseGeneratorModal } from "../ShowcaseGeneratorModal";
 import { publishZeusXListing } from "../../lib/zeusx";
+import { markAccountsListed } from "../../lib/listedAccounts";
 import { ZEUSX_CATEGORIES } from "../../lib/zeusxTypes";
 import type { ZeusXAttribute } from "../../lib/zeusxTypes";
 import type { AccountDetailsRow, AccountRow } from "../../lib/types";
@@ -16,6 +17,8 @@ interface Props {
   initialTitle?: string;
   initialDescription?: string;
   showcaseAccount?: { account: AccountRow; details: AccountDetailsRow | null | undefined };
+  /** Accounts this listing represents — marked "listed" (Units tab tag) once publish succeeds. */
+  listingUserIds?: number[];
 }
 
 const CUSTOM_LABEL = "Custom…";
@@ -32,7 +35,7 @@ function textToAttrs(text: string): ZeusXAttribute[] {
   return out;
 }
 
-export function NewZeusXListingView({ initialTitle, initialDescription, showcaseAccount }: Props) {
+export function NewZeusXListingView({ initialTitle, initialDescription, showcaseAccount, listingUserIds }: Props) {
   const toast = useToast();
   const [showcaseModalOpen, setShowcaseModalOpen] = useState(false);
 
@@ -110,6 +113,7 @@ export function NewZeusXListingView({ initialTitle, initialDescription, showcase
       });
       setResult(res.offerId ? `Offer ${res.offerId} created.` : "Listing published.");
       toast.success("Listing published");
+      if (listingUserIds?.length) markAccountsListed(listingUserIds, "zeusx");
     } catch (err) {
       toast.error("Publish failed", err instanceof Error ? err.message : String(err));
     } finally {

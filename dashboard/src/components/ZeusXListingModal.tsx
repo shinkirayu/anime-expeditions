@@ -10,10 +10,12 @@ interface Props {
   initialTitle?: string;
   initialDescription?: string;
   showcaseAccount?: { account: AccountRow; details: AccountDetailsRow | null | undefined };
+  /** Accounts this listing represents — marked "listed" (Units tab tag) once publish succeeds. */
+  listingUserIds?: number[];
 }
 
 /** Quick "list this on ZeusX" surface — mirrors EldoradoListingModal. Token setup lives on /zeusx. */
-export function ZeusXListingModal({ onClose, initialTitle, initialDescription, showcaseAccount }: Props) {
+export function ZeusXListingModal({ onClose, initialTitle, initialDescription, showcaseAccount, listingUserIds }: Props) {
   const [signedIn, setSignedIn] = useState(() => getZeusXAuthStatus().configured);
 
   return (
@@ -29,7 +31,12 @@ export function ZeusXListingModal({ onClose, initialTitle, initialDescription, s
 
         <div className="overflow-y-auto p-4">
           {signedIn ? (
-            <NewZeusXListingView initialTitle={initialTitle} initialDescription={initialDescription} showcaseAccount={showcaseAccount} />
+            <NewZeusXListingView
+              initialTitle={initialTitle}
+              initialDescription={initialDescription}
+              showcaseAccount={showcaseAccount}
+              listingUserIds={listingUserIds}
+            />
           ) : (
             <div className="space-y-3 rounded-xl border border-zinc-200 p-6 text-center dark:border-white/10">
               <p className="text-sm text-zinc-600 dark:text-zinc-300">Connect your ZeusX Bearer token before creating a listing.</p>

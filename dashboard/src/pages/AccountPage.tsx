@@ -347,6 +347,7 @@ export default function AccountPage() {
           initialTitle={buildDefaultTitle(account)}
           initialDescription={buildDefaultDescription(account, details.data)}
           showcaseAccount={{ account, details: details.data }}
+          listingUserIds={[account.user_id]}
           onClose={() => setEldoradoOpen(false)}
         />
       )}
@@ -356,6 +357,7 @@ export default function AccountPage() {
           initialTitle={buildDefaultTitle(account)}
           initialDescription={buildDefaultDescription(account, details.data)}
           showcaseAccount={{ account, details: details.data }}
+          listingUserIds={[account.user_id]}
           onClose={() => setZeusxOpen(false)}
         />
       )}

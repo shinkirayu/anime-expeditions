@@ -19,6 +19,7 @@ import {
   setBulkAccountsUsed,
   setCachedGame,
 } from "../../lib/eldorado";
+import { markAccountsListed } from "../../lib/listedAccounts";
 import type { BulkAccount, DeliveryMethod, EncodedPhoto, GameOption, ListingDraft, ListingTemplate } from "../../lib/eldoradoTypes";
 import type { AccountDetailsRow, AccountRow } from "../../lib/types";
 
@@ -37,9 +38,11 @@ interface Props {
   initialAccounts?: string[];
   /** When set, auto-renders that account's showcase image and attaches it as the main photo. */
   showcaseAccount?: { account: AccountRow; details: AccountDetailsRow | null | undefined };
+  /** Accounts this listing represents — marked "listed" (Units tab tag) once publish succeeds. */
+  listingUserIds?: number[];
 }
 
-export function NewListingView({ initialTitle, initialDescription, initialAccounts, showcaseAccount }: Props) {
+export function NewListingView({ initialTitle, initialDescription, initialAccounts, showcaseAccount, listingUserIds }: Props) {
   const toast = useToast();
   const queue = useEldoradoQueue();
   const gamesQuery = useEldoradoGames(true);
@@ -262,6 +265,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
         quantity: draft.quantity,
       });
       toast.success("Listing published", `Offer ${res.offerId} created with ${res.uploadedImages} image(s).`);
+      if (listingUserIds?.length) markAccountsListed(listingUserIds, "eldorado");
       keepShared ? resetUnique() : clearForm();
     } catch (err) {
       toast.error("Publish failed", err instanceof Error ? err.message : String(err));

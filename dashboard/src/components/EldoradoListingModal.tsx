@@ -13,6 +13,8 @@ interface Props {
   initialAccounts?: string[];
   /** When set, auto-renders that account's showcase image and attaches it as the listing's main photo. */
   showcaseAccount?: { account: AccountRow; details: AccountDetailsRow | null | undefined };
+  /** Accounts this listing represents — marked "listed" (Units tab tag) once publish succeeds. */
+  listingUserIds?: number[];
 }
 
 /**
@@ -22,7 +24,7 @@ interface Props {
  * the bulk credential pool are full features of their own now, on the
  * dedicated /eldorado page — this modal only links out to them.
  */
-export function EldoradoListingModal({ onClose, initialTitle, initialDescription, initialAccounts, showcaseAccount }: Props) {
+export function EldoradoListingModal({ onClose, initialTitle, initialDescription, initialAccounts, showcaseAccount, listingUserIds }: Props) {
   const [signedIn, setSignedIn] = useState(() => getAuthState().signedIn);
 
   return (
@@ -43,6 +45,7 @@ export function EldoradoListingModal({ onClose, initialTitle, initialDescription
               initialDescription={initialDescription}
               initialAccounts={initialAccounts}
               showcaseAccount={showcaseAccount}
+              listingUserIds={listingUserIds}
             />
           ) : (
             <div className="space-y-3 rounded-xl border border-zinc-200 p-6 text-center dark:border-white/10">

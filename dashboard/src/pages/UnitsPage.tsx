@@ -6,6 +6,7 @@ import { useDeleteAccounts } from "../hooks/useDeleteAccounts";
 import { RARITY_ORDER, rarityBoxStyle, rarityClass } from "../lib/format";
 import { ensureWarning } from "../lib/eldorado";
 import { buildDefaultDescription, buildDefaultTitle } from "../lib/eldoradoDescribe";
+import { isAccountListed } from "../lib/listedAccounts";
 import { StarIcon, SwordIcon } from "../components/icons";
 import { CloseButton } from "../components/CloseButton";
 import { EldoradoListingModal } from "../components/EldoradoListingModal";
@@ -332,6 +333,14 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
                   />
                   <span className="flex min-w-0 items-baseline gap-1.5">
                     <span className="truncate font-medium">{o.display_name || o.username}</span>
+                    {isAccountListed(o.user_id) && (
+                      <span
+                        className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
+                        title="Already published as a marketplace listing"
+                      >
+                        Listed
+                      </span>
+                    )}
                     {o.Trait?.DisplayName && (
                       <span className={`shrink-0 truncate text-[11px] font-medium ${rarityClass(o.Trait.Rarity)}`}>
                         · {o.Trait.DisplayName}
@@ -360,6 +369,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
           }
           initialAccounts={selected.size > 0 ? buildEldoradoAccounts() : undefined}
           showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
+          listingUserIds={[...selected]}
           onClose={() => setEldoradoOpen(false)}
         />
       )}
@@ -375,6 +385,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
               : `Anime Expeditions accounts that own ${unit.displayName}${unit.rarity ? ` (${unit.rarity})` : ""}.`
           }
           showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
+          listingUserIds={[...selected]}
           onClose={() => setZeusxOpen(false)}
         />
       )}
