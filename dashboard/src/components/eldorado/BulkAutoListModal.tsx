@@ -71,27 +71,11 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
   });
   const resolving = accountQueries.some((q) => q.isLoading);
 
-  const targets: BulkListingTarget[] = useMemo(
-    () =>
-      usernames.map((username, i) => {
-        const account = accountQueries[i]?.data ?? null;
-        const details = detailsQueries[i]?.data ?? null;
-        return {
-          key: username,
-          title: account ? buildDefaultTitle(account) : `Anime Expeditions Account — ${username}`,
-          description: account ? buildDefaultDescription(account, details) : `Account credentials for ${username}.`,
-          accountBlob: buildAccountBlobForUsername(username),
-          showcaseAccount: account ? { account, details } : undefined,
-          listingUserId: account?.user_id,
-        };
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [usernames, accountQueries.map((q) => q.dataUpdatedAt).join(","), detailsQueries.map((q) => q.dataUpdatedAt).join(",")],
-  );
-
   const cached = useMemo(() => getCachedGame(), []);
   const lastRun = useMemo(() => getLastBulkRunConfig(), []);
   const [gameId, setGameId] = useState(cached?.gameId ?? "");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [price, setPrice] = useState(lastRun?.price ?? "");
   const [hasOriginalEmail, setHasOriginalEmail] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(lastRun?.deliveryMethod ?? "Automatic");
@@ -100,21 +84,41 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
   const templates = useMemo<ListingTemplate[]>(() => getTemplates(), []);
   const [selectedTemplate, setSelectedTemplate] = useState("");
 
-  // Templates fill in the shared game/price/delivery settings below; each
-  // account's title/description still comes from its own tracked stats — a
-  // template's saved title/description wouldn't make sense reused verbatim
-  // across several different accounts in one batch.
+  // A selected template's title/description are used as-is for every listing
+  // in the batch (same as its price/delivery settings). Leave Title/Description
+  // blank to fall back to a per-account auto-generated title/description instead.
   function applyTemplate(name: string): void {
     setSelectedTemplate(name);
     const t = templates.find((x) => x.name === name);
     if (!t) return;
     setGameId(t.gameId);
+    setTitle(t.offerTitle);
+    setDescription(t.description);
     if (t.price != null) setPrice(String(t.price));
     setHasOriginalEmail(t.hasOriginalEmail);
     setDeliveryMethod(t.deliveryMethod);
     setManualDeliveryTime(t.manualDeliveryTime);
     toast.info("Template applied", name);
   }
+
+  const targets: BulkListingTarget[] = useMemo(
+    () =>
+      usernames.map((username, i) => {
+        const account = accountQueries[i]?.data ?? null;
+        const details = detailsQueries[i]?.data ?? null;
+        return {
+          key: username,
+          title: title.trim() || (account ? buildDefaultTitle(account) : `Anime Expeditions Account — ${username}`),
+          description:
+            description.trim() || (account ? buildDefaultDescription(account, details) : `Account credentials for ${username}.`),
+          accountBlob: buildAccountBlobForUsername(username),
+          showcaseAccount: account ? { account, details } : undefined,
+          listingUserId: account?.user_id,
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [usernames, title, description, accountQueries.map((q) => q.dataUpdatedAt).join(","), detailsQueries.map((q) => q.dataUpdatedAt).join(",")],
+  );
 
   const [states, setStates] = useState<Record<string, BulkListingState>>(() =>
     Object.fromEntries(usernames.map((u) => [u, { status: "pending" as BulkListingStatus }])),
@@ -278,8 +282,30 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
                   options={templates.map((t) => ({ value: t.name, label: t.name }))}
                 />
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Fills in the game/price/delivery settings below — titles and descriptions stay per-account.
+                  Fills in every field below, including title and description.
                 </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className={labelCls}>Listing title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Leave blank to auto-generate one per account"
+                  className={inputCls}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className={labelCls}>Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Leave blank to auto-generate one per account"
+                  className={inputCls}
+                />
               </div>
 
               <div className="space-y-1.5">
