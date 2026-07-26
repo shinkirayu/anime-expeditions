@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { useToast } from "../Toast";
 import { Dropdown } from "../Dropdown";
 import { ShowcaseGeneratorModal } from "../ShowcaseGeneratorModal";
+import { AccountShowcaseCard } from "../AccountShowcaseCard";
+import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "../UnitsShowcaseCard";
+import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "../InventoryShowcaseCard";
+import { renderShowcasePng } from "../../lib/exportShowcase";
 import { useEldoradoQueue } from "../../lib/eldoradoQueue";
 import { useEldoradoGames } from "../../hooks/useEldoradoGames";
 import {
@@ -81,21 +85,76 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [publishStep, setPublishStep] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [fetchingAll, setFetchingAll] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const quickHeroRef = useRef<HTMLDivElement>(null);
+  const quickUnitsRef = useRef<HTMLDivElement>(null);
+  const quickInventoryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
+
+  /** Converts a rendered PNG into a photo entry, prepended so it becomes the main photo. */
+  async function addPngAsPhoto(dataUrl: string, filename: string): Promise<void> {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], filename, { type: blob.type || "image/png" });
+    setPhotos((prev) => [
+      { id: `photo-${Date.now()}-${Math.random().toString(36).slice(2)}`, file, url: URL.createObjectURL(file) },
+      ...prev,
+    ]);
+  }
 
   /** Turns a rendered showcase PNG into a photo entry instead of downloading it. */
   async function useShowcaseAsPhoto(dataUrl: string, filename: string): Promise<void> {
     try {
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], filename, { type: blob.type || "image/png" });
-      setPhotos((prev) => [{ id: `showcase-${Date.now()}`, file, url: URL.createObjectURL(file) }, ...prev]);
+      await addPngAsPhoto(dataUrl, filename);
       setShowcaseModalOpen(false);
       toast.success("Photo added", "The showcase image was added as a photo.");
     } catch (err) {
       toast.error("Could not add photo", err instanceof Error ? err.message : String(err));
     }
+  }
+
+  /**
+   * One-click "grab everything" — renders Inventory, Units, and Hero (in that
+   * order) and adds all three as photos. Each add prepends, so Hero — added
+   * last — ends up first in the list, i.e. the main offer image, without
+   * needing any manual reordering.
+   */
+  async function fetchAllShowcases(): Promise<void> {
+    if (!showcaseAccount) return;
+    setFetchingAll(true);
+    try {
+      const jobs: { ref: React.RefObject<HTMLDivElement | null>; label: string }[] = [
+        { ref: quickInventoryRef, label: "inventory" },
+        { ref: quickUnitsRef, label: "units" },
+        { ref: quickHeroRef, label: "hero" },
+      ];
+      let added = 0;
+      for (const { ref, label } of jobs) {
+        const node = ref.current;
+        if (!node) continue;
+        const dataUrl = await renderShowcasePng(node);
+        await addPngAsPhoto(dataUrl, `${showcaseAccount.account.username}-${label}.png`);
+        added += 1;
+      }
+      toast.success(`Fetched ${added} showcase photo(s)`, "The hero showcase is set as the main photo.");
+    } catch (err) {
+      toast.error("Could not fetch showcase photos", err instanceof Error ? err.message : String(err));
+    } finally {
+      setFetchingAll(false);
+    }
+  }
+
+  /** Promotes a photo to the front of the list, making it the main offer image. */
+  function setAsMainPhoto(id: string): void {
+    setPhotos((prev) => {
+      const idx = prev.findIndex((p) => p.id === id);
+      if (idx <= 0) return prev;
+      const next = prev.slice();
+      const [item] = next.splice(idx, 1);
+      next.unshift(item);
+      return next;
+    });
   }
 
   // Auto-pick "Anime Expeditions" the first time the catalog loads, if nothing cached yet.
@@ -496,19 +555,32 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
 
       {/* Photos */}
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 dark:border-white/10">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-sm font-semibold">Photos</h3>
           {showcaseAccount && (
-            <button
-              onClick={() => setShowcaseModalOpen(true)}
-              type="button"
-              className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium dark:border-zinc-700"
-            >
-              Use account showcase
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={fetchAllShowcases}
+                disabled={fetchingAll}
+                type="button"
+                className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700"
+              >
+                {fetchingAll ? "Fetching…" : "Quick fetch all 3"}
+              </button>
+              <button
+                onClick={() => setShowcaseModalOpen(true)}
+                type="button"
+                className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium dark:border-zinc-700"
+              >
+                Use account showcase
+              </button>
+            </div>
           )}
         </div>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">The first photo becomes the main offer image.</p>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          The first photo becomes the main offer image — click a photo's star to make it the main one.
+          {showcaseAccount && " \"Quick fetch all 3\" grabs Inventory, Units, and Hero at once, with Hero set as the main photo."}
+        </p>
 
         <div
           onClick={() => fileInput.current?.click()}
@@ -543,7 +615,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
         {photos.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {photos.map((p, i) => (
-              <div key={p.id} className="relative size-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+              <div key={p.id} className="group relative size-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
                 <img src={p.url} alt={p.file.name} className="size-full object-cover" />
                 <button
                   onClick={() => removePhoto(p.id)}
@@ -551,8 +623,16 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
                 >
                   ×
                 </button>
-                {i === 0 && (
+                {i === 0 ? (
                   <span className="absolute bottom-0 left-0 rounded-tr bg-fuchsia-600 px-1 text-[9px] font-semibold text-white">Main</span>
+                ) : (
+                  <button
+                    onClick={() => setAsMainPhoto(p.id)}
+                    title="Set as main photo"
+                    className="absolute bottom-0 left-0 rounded-tr bg-black/60 px-1 text-[9px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    ★ Set main
+                  </button>
                 )}
               </div>
             ))}
@@ -745,6 +825,19 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
           onAction={useShowcaseAsPhoto}
           onClose={() => setShowcaseModalOpen(false)}
         />
+      )}
+
+      {showcaseAccount && (
+        <div className="pointer-events-none fixed top-0 -left-[9999px] opacity-0" aria-hidden="true">
+          <AccountShowcaseCard ref={quickHeroRef} account={showcaseAccount.account} details={showcaseAccount.details} />
+          <UnitsShowcaseCard ref={quickUnitsRef} account={showcaseAccount.account} details={showcaseAccount.details} columns={DEFAULT_UNIT_COLUMNS} />
+          <InventoryShowcaseCard
+            ref={quickInventoryRef}
+            account={showcaseAccount.account}
+            details={showcaseAccount.details}
+            columns={DEFAULT_ITEM_COLUMNS}
+          />
+        </div>
       )}
     </div>
   );
