@@ -9,8 +9,10 @@ import {
   ACCEPTED_IMAGE_TYPES,
   MANUAL_DELIVERY_TIMES,
   PRICE_LIMITS,
+  buildAccountBlobForUsername,
   deleteTemplate as deleteTemplateStorage,
   ensureWarning,
+  findBulkAccountByUsername,
   getBulkAccounts,
   getCachedGame,
   getTemplates,
@@ -34,15 +36,15 @@ interface Photo {
 interface Props {
   initialTitle?: string;
   initialDescription?: string;
-  /** Pre-seeds Automatic delivery with one blob per entry (e.g. accounts picked from the dashboard). */
-  initialAccounts?: string[];
+  /** Pre-seeds Automatic delivery with one entry per username (e.g. accounts picked from the dashboard) — auto-matched against the Bulk Accounts pool by username. */
+  initialAccountUsernames?: string[];
   /** When set, auto-renders that account's showcase image and attaches it as the main photo. */
   showcaseAccount?: { account: AccountRow; details: AccountDetailsRow | null | undefined };
   /** Accounts this listing represents — marked "listed" (Units tab tag) once publish succeeds. */
   listingUserIds?: number[];
 }
 
-export function NewListingView({ initialTitle, initialDescription, initialAccounts, showcaseAccount, listingUserIds }: Props) {
+export function NewListingView({ initialTitle, initialDescription, initialAccountUsernames, showcaseAccount, listingUserIds }: Props) {
   const toast = useToast();
   const queue = useEldoradoQueue();
   const gamesQuery = useEldoradoGames(true);
@@ -56,11 +58,15 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   const [originalEmail, setOriginalEmail] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>([]);
 
-  const hasInitialAccounts = !!initialAccounts && initialAccounts.length > 0;
+  const hasInitialAccounts = !!initialAccountUsernames && initialAccountUsernames.length > 0;
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(hasInitialAccounts ? "Automatic" : "Manual");
   const [manualDeliveryTime, setManualDeliveryTime] = useState("Hour1");
   const [quantity, setQuantity] = useState("1");
-  const [accounts, setAccounts] = useState<string[]>(initialAccounts && initialAccounts.length > 0 ? initialAccounts : [""]);
+  const [accounts, setAccounts] = useState<string[]>(() =>
+    initialAccountUsernames && initialAccountUsernames.length > 0
+      ? initialAccountUsernames.map((username) => buildAccountBlobForUsername(username))
+      : [""],
+  );
 
   const [bulkAccounts, setBulkAccounts] = useState<BulkAccount[]>(() => getBulkAccounts());
   const [showPicker, setShowPicker] = useState(false);
@@ -174,6 +180,26 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   }
   function removeAccount(i: number): void {
     setAccounts((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
+  }
+
+  // Re-scans entries still in the "Roblox username: X" placeholder form (i.e. not yet
+  // filled in, and not manually edited) and swaps in real credentials wherever the
+  // username now matches a Bulk Accounts pool entry — useful when the pool was
+  // updated after this form was already open.
+  function autofillFromBulkAccounts(): void {
+    let filled = 0;
+    setAccounts((prev) =>
+      prev.map((blob) => {
+        const match = blob.match(/^Roblox username:\s*(.+)$/m);
+        if (!match) return blob;
+        const bulkMatch = findBulkAccountByUsername(match[1].trim());
+        if (!bulkMatch) return blob;
+        filled += 1;
+        return ensureWarning(`User: ${bulkMatch.user}\nPass: ${bulkMatch.pass}`);
+      }),
+    );
+    if (filled > 0) toast.success(`Auto-filled ${filled} account(s)`, "Matched by username in your Bulk Accounts pool.");
+    else toast.info("No matches found", "None of the placeholder usernames matched your Bulk Accounts pool.");
   }
 
   function validate(): boolean {
@@ -585,17 +611,25 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
         <div className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10">
           <h3 className="font-display text-sm font-semibold">Account Information Shared With Buyer</h3>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            One entry per account — each is delivered to one buyer, and your stock equals the number of entries. Pick from
-            your credential pool, or type details manually. The purchase notice is always appended automatically.
+            One entry per account — each is delivered to one buyer, and your stock equals the number of entries. Entries
+            seeded from a tracked account auto-fill from your Bulk Accounts pool by matching username; pick from the pool
+            yourself, or type details manually. The purchase notice is always appended automatically.
           </p>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <button
               onClick={() => setShowPicker((v) => !v)}
               type="button"
               className="rounded-lg border border-zinc-200 px-2 py-1 font-medium dark:border-zinc-700"
             >
               {showPicker ? "Hide bulk list" : "Select from Bulk List"}
+            </button>
+            <button
+              onClick={autofillFromBulkAccounts}
+              type="button"
+              className="rounded-lg border border-zinc-200 px-2 py-1 font-medium dark:border-zinc-700"
+            >
+              Autofill from Bulk Accounts
             </button>
             <span className="text-zinc-500 dark:text-zinc-400">{bulkAccounts.filter((a) => !a.used).length} available</span>
             <Link to="/eldorado" className="font-medium text-fuchsia-600 hover:underline dark:text-fuchsia-400">

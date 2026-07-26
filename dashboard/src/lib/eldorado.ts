@@ -460,6 +460,25 @@ export function getBulkAccounts(): BulkAccount[] {
   return readBulkAccounts();
 }
 
+/** Finds a Bulk Accounts pool entry whose username matches (case-insensitive). */
+export function findBulkAccountByUsername(username: string): BulkAccount | undefined {
+  const needle = username.trim().toLowerCase();
+  if (!needle) return undefined;
+  return readBulkAccounts().find((a) => a.user.trim().toLowerCase() === needle);
+}
+
+/**
+ * Builds an Automatic-delivery account blob for a known Roblox username — the
+ * real credentials if a Bulk Accounts pool entry matches that username,
+ * otherwise a fill-in-the-blank placeholder for the seller to complete by hand.
+ */
+export function buildAccountBlobForUsername(username: string): string {
+  const match = findBulkAccountByUsername(username);
+  return match
+    ? ensureWarning(`User: ${match.user}\nPass: ${match.pass}`)
+    : ensureWarning(`Roblox username: ${username}\nUser: \nPass: `);
+}
+
 export interface ImportResult {
   accounts: BulkAccount[];
   added: number;

@@ -4,7 +4,6 @@ import { useAllUnits, type AggregatedUnit, type OwnedUnit } from "../hooks/useAl
 import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useDeleteAccounts } from "../hooks/useDeleteAccounts";
 import { RARITY_ORDER, rarityBoxStyle, rarityClass } from "../lib/format";
-import { ensureWarning } from "../lib/eldorado";
 import { buildDefaultDescription, buildDefaultTitle } from "../lib/eldoradoDescribe";
 import { isAccountListed } from "../lib/listedAccounts";
 import { StarIcon, SwordIcon } from "../components/icons";
@@ -217,11 +216,8 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function buildEldoradoAccounts(): string[] {
-    return [...selected]
-      .map((id) => usernameByUserId.get(id))
-      .filter((n): n is string => !!n)
-      .map((username) => ensureWarning(`Roblox username: ${username}\nUser: \nPass: `));
+  function selectedUsernames(): string[] {
+    return [...selected].map((id) => usernameByUserId.get(id)).filter((n): n is string => !!n);
   }
 
   function handleDelete() {
@@ -367,7 +363,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
               ? buildDefaultDescription(soloAccount.data, soloDetails.data)
               : `Anime Expeditions accounts that own ${unit.displayName}${unit.rarity ? ` (${unit.rarity})` : ""}.`
           }
-          initialAccounts={selected.size > 0 ? buildEldoradoAccounts() : undefined}
+          initialAccountUsernames={selected.size > 0 ? selectedUsernames() : undefined}
           showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
           listingUserIds={[...selected]}
           onClose={() => setEldoradoOpen(false)}
