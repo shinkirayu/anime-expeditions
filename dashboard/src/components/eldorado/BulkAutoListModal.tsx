@@ -13,9 +13,17 @@ import { buildDefaultDescription, buildDefaultTitle } from "../../lib/eldoradoDe
 import { getSavedUnitPose } from "../../lib/showcasePoseConfig";
 import { getLastBulkRunConfig, saveLastBulkRunConfig } from "../../lib/bulkRunConfig";
 import { useEldoradoGames } from "../../hooks/useEldoradoGames";
-import { MANUAL_DELIVERY_TIMES, PRICE_LIMITS, buildAccountBlobForUsername, getCachedGame, publishListing, setCachedGame } from "../../lib/eldorado";
+import {
+  MANUAL_DELIVERY_TIMES,
+  PRICE_LIMITS,
+  buildAccountBlobForUsername,
+  getCachedGame,
+  getTemplates,
+  publishListing,
+  setCachedGame,
+} from "../../lib/eldorado";
 import { markAccountsListed } from "../../lib/listedAccounts";
-import type { DeliveryMethod, EncodedPhoto, GameOption } from "../../lib/eldoradoTypes";
+import type { DeliveryMethod, EncodedPhoto, GameOption, ListingTemplate } from "../../lib/eldoradoTypes";
 import type { BulkListingState, BulkListingStatus, BulkListingTarget } from "../../lib/eldoradoTypes";
 import type { AccountDetailsRow, AccountRow, UnitEntry } from "../../lib/types";
 
@@ -85,8 +93,28 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
   const lastRun = useMemo(() => getLastBulkRunConfig(), []);
   const [gameId, setGameId] = useState(cached?.gameId ?? "");
   const [price, setPrice] = useState(lastRun?.price ?? "");
+  const [hasOriginalEmail, setHasOriginalEmail] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(lastRun?.deliveryMethod ?? "Automatic");
   const [manualDeliveryTime, setManualDeliveryTime] = useState(lastRun?.manualDeliveryTime ?? "Hour1");
+
+  const templates = useMemo<ListingTemplate[]>(() => getTemplates(), []);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+
+  // Templates fill in the shared game/price/delivery settings below; each
+  // account's title/description still comes from its own tracked stats — a
+  // template's saved title/description wouldn't make sense reused verbatim
+  // across several different accounts in one batch.
+  function applyTemplate(name: string): void {
+    setSelectedTemplate(name);
+    const t = templates.find((x) => x.name === name);
+    if (!t) return;
+    setGameId(t.gameId);
+    if (t.price != null) setPrice(String(t.price));
+    setHasOriginalEmail(t.hasOriginalEmail);
+    setDeliveryMethod(t.deliveryMethod);
+    setManualDeliveryTime(t.manualDeliveryTime);
+    toast.info("Template applied", name);
+  }
 
   const [states, setStates] = useState<Record<string, BulkListingState>>(() =>
     Object.fromEntries(usernames.map((u) => [u, { status: "pending" as BulkListingStatus }])),
@@ -172,7 +200,7 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
           offerTitle: target.title,
           description: target.description,
           price: Number.parseFloat(price),
-          hasOriginalEmail: false,
+          hasOriginalEmail,
           photos,
           deliveryMethod,
           accounts: deliveryMethod === "Automatic" ? [target.accountBlob] : [],
@@ -239,6 +267,22 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
               {resolving && <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Loading account details…</p>}
 
               <div className="space-y-1.5">
+                <label className={labelCls}>Template (optional)</label>
+                <Dropdown
+                  value={selectedTemplate}
+                  onChange={applyTemplate}
+                  label="Template"
+                  ariaLabel="Select template"
+                  fullWidth
+                  placeholder="— none —"
+                  options={templates.map((t) => ({ value: t.name, label: t.name }))}
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Fills in the game/price/delivery settings below — titles and descriptions stay per-account.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className={labelCls}>Game</label>
                 {gamesQuery.isLoading ? (
                   <div className={`${inputCls} text-zinc-400`}>Loading games…</div>
@@ -267,6 +311,11 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
                   className={inputCls}
                 />
               </div>
+
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={hasOriginalEmail} onChange={(e) => setHasOriginalEmail(e.target.checked)} className="accent-fuchsia-500" />
+                Original email included
+              </label>
 
               <div className="space-y-1.5">
                 <label className={labelCls}>Delivery method</label>
