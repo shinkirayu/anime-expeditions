@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { useToast } from "../Toast";
 import { Dropdown } from "../Dropdown";
 import { ShowcaseGeneratorModal } from "../ShowcaseGeneratorModal";
-import { AccountShowcaseCard } from "../AccountShowcaseCard";
+import { AccountShowcaseCard, DEFAULT_POSE_TRANSFORM, DEFAULT_VISIBLE_STATS } from "../AccountShowcaseCard";
 import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "../UnitsShowcaseCard";
 import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "../InventoryShowcaseCard";
 import { renderShowcasePng } from "../../lib/exportShowcase";
+import { rarityRank } from "../../lib/format";
+import { getSavedUnitPose } from "../../lib/showcasePoseConfig";
 import { useEldoradoQueue } from "../../lib/eldoradoQueue";
 import { useEldoradoGames } from "../../hooks/useEldoradoGames";
 import {
@@ -27,7 +29,7 @@ import {
 } from "../../lib/eldorado";
 import { markAccountsListed } from "../../lib/listedAccounts";
 import type { BulkAccount, DeliveryMethod, EncodedPhoto, GameOption, ListingDraft, ListingTemplate } from "../../lib/eldoradoTypes";
-import type { AccountDetailsRow, AccountRow } from "../../lib/types";
+import type { AccountDetailsRow, AccountRow, UnitEntry } from "../../lib/types";
 
 /** Port of eldorado/src/renderer/src/pages/NewListing.tsx. */
 
@@ -170,6 +172,21 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   const priceNum = useMemo(() => Number.parseFloat(price), [price]);
   const isAuto = deliveryMethod === "Automatic";
   const gameName = gamesQuery.data?.find((g) => g.gameId === gameId)?.name || gameId;
+
+  // "Quick fetch all 3" has no unit picker, so it always uses the auto-picked
+  // best unit — mirroring ShowcaseGeneratorModal's own "Auto (best unit)"
+  // logic — and must look up that unit's saved pose/stats config the same
+  // way, or the quick hero render silently ignores it and falls back to defaults.
+  const quickBestUnit = useMemo(() => {
+    const units = (showcaseAccount?.details?.units ?? []) as UnitEntry[];
+    if (units.length === 0) return null;
+    return units.slice().sort((a, b) => rarityRank(a.Rarity) - rarityRank(b.Rarity) || (b.Level ?? 0) - (a.Level ?? 0))[0] ?? null;
+  }, [showcaseAccount]);
+
+  const quickHeroConfig = useMemo(() => {
+    const saved = quickBestUnit?.Asset ? getSavedUnitPose(quickBestUnit.Asset) : null;
+    return { pose: saved?.pose ?? DEFAULT_POSE_TRANSFORM, visibleStats: saved?.visibleStats ?? DEFAULT_VISIBLE_STATS };
+  }, [quickBestUnit]);
 
   function onSelectGame(id: string): void {
     setGameId(id);
@@ -829,7 +846,13 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
 
       {showcaseAccount && (
         <div className="pointer-events-none fixed top-0 -left-[9999px] opacity-0" aria-hidden="true">
-          <AccountShowcaseCard ref={quickHeroRef} account={showcaseAccount.account} details={showcaseAccount.details} />
+          <AccountShowcaseCard
+            ref={quickHeroRef}
+            account={showcaseAccount.account}
+            details={showcaseAccount.details}
+            pose={quickHeroConfig.pose}
+            visibleStats={quickHeroConfig.visibleStats}
+          />
           <UnitsShowcaseCard ref={quickUnitsRef} account={showcaseAccount.account} details={showcaseAccount.details} columns={DEFAULT_UNIT_COLUMNS} />
           <InventoryShowcaseCard
             ref={quickInventoryRef}
