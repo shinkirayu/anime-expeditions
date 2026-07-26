@@ -7,11 +7,14 @@ import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityBoxStyle, rari
 import { downloadDataUrl } from "../lib/exportShowcase";
 import { BarChart } from "../components/BarChart";
 import { AssetImage } from "../components/AssetImage";
+import { CROW_RELIC_ICON } from "../lib/assetIcon";
 import { ShowcaseGeneratorModal } from "../components/ShowcaseGeneratorModal";
 import { EldoradoListingModal } from "../components/EldoradoListingModal";
+import { ZeusXListingModal } from "../components/ZeusXListingModal";
 import { buildDefaultDescription, buildDefaultTitle } from "../lib/eldoradoDescribe";
 import { ItemCard } from "../components/ItemCard";
 import { StoryProgressBar } from "../components/StoryProgressBar";
+import { VillainInvasionActs } from "../components/VillainInvasionActs";
 import { UnitIconImage } from "../components/UnitIconImage";
 
 const UNIT_PAGE = 60;
@@ -27,6 +30,7 @@ export default function AccountPage() {
   const [unitFilter, setUnitFilter] = useState("");
   const [showcaseOpen, setShowcaseOpen] = useState(false);
   const [eldoradoOpen, setEldoradoOpen] = useState(false);
+  const [zeusxOpen, setZeusxOpen] = useState(false);
 
   const units = useMemo(() => {
     const all = (details.data?.units ?? []) as UnitEntry[];
@@ -56,6 +60,7 @@ export default function AccountPage() {
 
   const gems = useMemo(() => getCurrencyEntry(account?.currencies, "gem"), [account]);
   const traitCrystal = useMemo(() => getCurrencyEntry(account?.currencies, "trait crystal"), [account]);
+  const crowRelic = useMemo(() => getCurrencyEntry(account?.currencies, "crowrelic"), [account]);
 
   // Currencies (Gems, Trait Crystal, ...) shown pinned at the top of the
   // inventory list instead of a separate currency section. Pinned currencies
@@ -107,6 +112,12 @@ export default function AccountPage() {
             List on Eldorado
           </button>
           <button
+            onClick={() => setZeusxOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-fuchsia-400 dark:border-white/10 dark:text-zinc-300"
+          >
+            List on ZeusX
+          </button>
+          <button
             onClick={() => setShowcaseOpen(true)}
             disabled={details.isLoading}
             className="gradient-purple rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(129,19,255,0.35)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
@@ -147,7 +158,7 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           <Tile
             label="Gems"
             value={fmtFullNum(gems?.Amount ?? 0)}
@@ -160,6 +171,11 @@ export default function AccountPage() {
               <AssetImage rbxAssetId={traitCrystal?.Icon} alt="Trait Crystal" className="size-5" fallback="🔮" />
             }
           />
+          <Tile
+            label="Crow Relic"
+            value={fmtFullNum(crowRelic?.Amount ?? 0)}
+            icon={<AssetImage rbxAssetId={crowRelic?.Icon ?? CROW_RELIC_ICON} alt="Crow Relic" className="size-5" fallback="🪶" />}
+          />
           <Tile label="Units" value={fmtFullNum(account.unit_count)} />
           <Tile label="Items" value={fmtFullNum(account.item_count)} />
           <Tile
@@ -170,7 +186,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Story + Raid progress */}
+      {/* Story + Raid + Villain Invasion progress */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Section title="Story progress">
           <StoryProgressBar story={account.progress?.Story} label="Story" />
@@ -179,6 +195,13 @@ export default function AccountPage() {
           <StoryProgressBar story={account.progress?.Raid} label="Raid" />
         </Section>
       </div>
+
+      <Section title="Villain Invasion progress">
+        <div className="space-y-3">
+          <StoryProgressBar story={account.progress?.VillainInvasion} label="Villain Invasion" />
+          <VillainInvasionActs acts={account.progress?.VillainInvasion?.Acts} />
+        </div>
+      </Section>
 
       {/* Live match state */}
       {account.in_match && account.progress?.Match && (
@@ -325,6 +348,15 @@ export default function AccountPage() {
           initialDescription={buildDefaultDescription(account, details.data)}
           showcaseAccount={{ account, details: details.data }}
           onClose={() => setEldoradoOpen(false)}
+        />
+      )}
+
+      {zeusxOpen && (
+        <ZeusXListingModal
+          initialTitle={buildDefaultTitle(account)}
+          initialDescription={buildDefaultDescription(account, details.data)}
+          showcaseAccount={{ account, details: details.data }}
+          onClose={() => setZeusxOpen(false)}
         />
       )}
 

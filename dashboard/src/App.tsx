@@ -17,6 +17,7 @@ const AccountPage = lazy(() => import("./pages/AccountPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const UnitsPage = lazy(() => import("./pages/UnitsPage"));
 const EldoradoPage = lazy(() => import("./pages/EldoradoPage"));
+const ZeusXPage = lazy(() => import("./pages/ZeusXPage"));
 
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
@@ -53,6 +54,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <NavItem to="/">Accounts</NavItem>
             <NavItem to="/units">Units</NavItem>
             <NavItem to="/eldorado">Eldorado</NavItem>
+            <NavItem to="/zeusx">ZeusX</NavItem>
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
@@ -96,6 +98,7 @@ function Gate() {
           <Route path="/account/:userId" element={<AccountPage />} />
           <Route path="/units" element={<UnitsPage />} />
           <Route path="/eldorado" element={<EldoradoPage />} />
+          <Route path="/zeusx" element={<ZeusXPage />} />
           <Route path="*" element={<DashboardPage />} />
         </Routes>
       </Suspense>

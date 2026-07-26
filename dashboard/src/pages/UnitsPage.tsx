@@ -9,6 +9,7 @@ import { buildDefaultDescription, buildDefaultTitle } from "../lib/eldoradoDescr
 import { StarIcon, SwordIcon } from "../components/icons";
 import { CloseButton } from "../components/CloseButton";
 import { EldoradoListingModal } from "../components/EldoradoListingModal";
+import { ZeusXListingModal } from "../components/ZeusXListingModal";
 import { UnitIconImage } from "../components/UnitIconImage";
 
 export default function UnitsPage() {
@@ -158,6 +159,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
   const [lastIndex, setLastIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [eldoradoOpen, setEldoradoOpen] = useState(false);
+  const [zeusxOpen, setZeusxOpen] = useState(false);
   const deleteAccounts = useDeleteAccounts();
 
   // Only fetch full account data (for the showcase auto-attach) when exactly one account is selected.
@@ -276,6 +278,12 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
                 List on Eldorado
               </button>
               <button
+                onClick={() => setZeusxOpen(true)}
+                className="rounded-md border border-fuchsia-300 bg-white px-2 py-1 text-[11px] font-semibold text-fuchsia-600 transition-colors hover:border-fuchsia-400 dark:border-fuchsia-500/40 dark:bg-white/5 dark:text-fuchsia-400"
+              >
+                List on ZeusX
+              </button>
+              <button
                 onClick={handleCopy}
                 className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:border-fuchsia-400 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
               >
@@ -353,6 +361,21 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
           initialAccounts={selected.size > 0 ? buildEldoradoAccounts() : undefined}
           showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
           onClose={() => setEldoradoOpen(false)}
+        />
+      )}
+
+      {zeusxOpen && (
+        <ZeusXListingModal
+          initialTitle={
+            soloAccount.data ? buildDefaultTitle(soloAccount.data) : `${unit.displayName} owners — ${selected.size || accountCount} accounts`
+          }
+          initialDescription={
+            soloAccount.data
+              ? buildDefaultDescription(soloAccount.data, soloDetails.data)
+              : `Anime Expeditions accounts that own ${unit.displayName}${unit.rarity ? ` (${unit.rarity})` : ""}.`
+          }
+          showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
+          onClose={() => setZeusxOpen(false)}
         />
       )}
     </div>

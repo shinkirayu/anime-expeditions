@@ -51,7 +51,7 @@ local CONFIG = {
 	-- though the game's own Items sheet classifies them as SubType "Material"
 	-- (e.g. Trait Crystal / "TraitReroll") — things worth tracking prominently
 	-- alongside real currencies like Gems.
-	PinnedCurrencyItems = { "TraitReroll" },
+	PinnedCurrencyItems = { "TraitReroll", "CrowRelic" },
 }
 
 --// ---------------------------------------------------------------------------
@@ -423,7 +423,11 @@ end
 -- which only governs stage sequencing WITHIN an already-unlocked gamemode
 -- and will happily say "Act 1 unlocked" even if the whole gamemode is gated
 -- behind a level the account hasn't reached yet.
-local function computeGamemodeProgress(completedMaps, gamemode, accountLevel)
+-- "includeActs": also returns a per-act {Name, Unlocked, Completed} breakdown
+-- (Villain Invasion only, so its 4 acts — "Act 1".."Act 3" plus the "Crow"
+-- finale stage — can each show their own unlock state, not just an aggregate
+-- count). Story/Raid don't pass this, so their stored shape is unchanged.
+local function computeGamemodeProgress(completedMaps, gamemode, accountLevel, includeActs)
 	local gamemodeDef = StaticInfo.Gamemodes and StaticInfo.Gamemodes[gamemode]
 	local requiredLevel = gamemodeDef and tonumber(gamemodeDef.RequiredLevel)
 	if requiredLevel and (accountLevel == nil or accountLevel < requiredLevel) then
@@ -449,6 +453,7 @@ local function computeGamemodeProgress(completedMaps, gamemode, accountLevel)
 
 	local totalActs, completedActs = 0, 0
 	local nextMap, nextAct = nil, nil
+	local actDetails = includeActs and {} or nil
 
 	for _, mapName in ipairs(orderedMaps) do
 		local actsOk, acts = pcall(function()
@@ -466,6 +471,17 @@ local function computeGamemodeProgress(completedMaps, gamemode, accountLevel)
 				elseif not nextMap then
 					nextMap, nextAct = mapName, actName
 				end
+				if actDetails then
+					local unlocked = cleared
+					pcall(function()
+						unlocked = Maps:HasActUnlocked(completedMaps, gamemode, mapName, actName)
+					end)
+					table.insert(actDetails, {
+						Name = actName,
+						Unlocked = unlocked,
+						Completed = cleared,
+					})
+				end
 			end
 		end
 	end
@@ -482,6 +498,7 @@ local function computeGamemodeProgress(completedMaps, gamemode, accountLevel)
 		NextMap = nextMap,
 		NextAct = nextAct,
 		Completed = completedActs >= totalActs,
+		Acts = actDetails,
 	}
 end
 
@@ -503,6 +520,7 @@ function Trackers.progress(data)
 		CompletedMaps = completed,
 		Story = computeGamemodeProgress(completedMaps, "Story", accountLevel),
 		Raid = computeGamemodeProgress(completedMaps, "Raid", accountLevel),
+		VillainInvasion = computeGamemodeProgress(completedMaps, "VillainInvasion", accountLevel, true),
 	}
 end
 

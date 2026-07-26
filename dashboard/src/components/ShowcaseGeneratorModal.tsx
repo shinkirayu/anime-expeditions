@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountDetailsRow, AccountRow, UnitEntry } from "../lib/types";
 import { renderShowcasePng, showcaseFilename } from "../lib/exportShowcase";
+import { rarityRank } from "../lib/format";
+import { clearUnitPose, getSavedUnitPose, saveUnitPose } from "../lib/showcasePoseConfig";
 import {
   AccountShowcaseCard,
   DEFAULT_POSE_TRANSFORM,
@@ -12,6 +14,7 @@ import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "./UnitsShowcaseCard";
 import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "./InventoryShowcaseCard";
 import { StatsShowcaseCard } from "./StatsShowcaseCard";
 import { CloseButton } from "./CloseButton";
+import { useToast } from "./Toast";
 
 const SHOWCASE_TYPES = ["hero", "units", "inventory", "stats"] as const;
 type ShowcaseType = (typeof SHOWCASE_TYPES)[number];
@@ -40,6 +43,7 @@ export function ShowcaseGeneratorModal({
   actionLabel: string;
   onAction: (dataUrl: string, filename: string) => void;
 }) {
+  const toast = useToast();
   const [showcaseType, setShowcaseType] = useState<ShowcaseType>("hero");
   const [showcasePng, setShowcasePng] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -48,8 +52,10 @@ export function ShowcaseGeneratorModal({
   const [featuredUnitId, setFeaturedUnitId] = useState<string | null>(null);
   const [unitColumns, setUnitColumns] = useState(DEFAULT_UNIT_COLUMNS);
   const [itemColumns, setItemColumns] = useState(DEFAULT_ITEM_COLUMNS);
+  const [hasSavedPose, setHasSavedPose] = useState(false);
   const poseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const columnsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appliedAssetRef = useRef<string | null>(null);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const unitsRef = useRef<HTMLDivElement>(null);
@@ -80,6 +86,35 @@ export function ShowcaseGeneratorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const units = (details?.units ?? []) as UnitEntry[];
+
+  // Whichever unit is actually featured — manually picked, or the "auto (best
+  // unit)" pick when none is — mirrors AccountShowcaseCard's own selection so
+  // saved pose configs apply consistently whether the pick was manual or auto.
+  const featuredUnit = useMemo(() => {
+    if (units.length === 0) return null;
+    const manual = featuredUnitId ? units.find((u) => u.UniqueId === featuredUnitId) : null;
+    if (manual) return manual;
+    return (
+      units.slice().sort((a, b) => rarityRank(a.Rarity) - rarityRank(b.Rarity) || (b.Level ?? 0) - (a.Level ?? 0))[0] ?? null
+    );
+  }, [units, featuredUnitId]);
+
+  // Whenever the featured unit changes (manual pick, auto pick on load, or a
+  // different account entirely), load its saved pose/stats config if one was
+  // saved for it before — otherwise fall back to the defaults.
+  useEffect(() => {
+    const key = featuredUnit?.Asset;
+    if (!key || appliedAssetRef.current === key) return;
+    appliedAssetRef.current = key;
+    const saved = getSavedUnitPose(key);
+    setPose(saved?.pose ?? DEFAULT_POSE_TRANSFORM);
+    setVisibleStats(saved?.visibleStats ?? DEFAULT_VISIBLE_STATS);
+    setHasSavedPose(!!saved);
+    setTimeout(() => renderType("hero"), 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featuredUnit?.Asset]);
+
   async function switchShowcase(type: ShowcaseType) {
     setShowcaseType(type);
     setShowcasePng(null);
@@ -99,8 +134,6 @@ export function ShowcaseGeneratorModal({
 
   function selectFeaturedUnit(unitId: string) {
     setFeaturedUnitId(unitId || null);
-    setPose(DEFAULT_POSE_TRANSFORM);
-    setTimeout(() => renderType("hero"), 50);
   }
 
   function adjustColumns(type: "units" | "inventory", columns: number) {
@@ -110,7 +143,23 @@ export function ShowcaseGeneratorModal({
     columnsDebounceRef.current = setTimeout(() => renderType(type), 250);
   }
 
-  const units = (details?.units ?? []) as UnitEntry[];
+  function saveCurrentPose() {
+    const key = featuredUnit?.Asset;
+    if (!key) return;
+    saveUnitPose(key, pose, visibleStats);
+    setHasSavedPose(true);
+    toast.success("Config saved", `${featuredUnit?.DisplayName || key} will use this pose and stats next time.`);
+  }
+
+  function resetCurrentPose() {
+    const key = featuredUnit?.Asset;
+    setPose(DEFAULT_POSE_TRANSFORM);
+    setVisibleStats(DEFAULT_VISIBLE_STATS);
+    if (key) clearUnitPose(key);
+    setHasSavedPose(false);
+    setTimeout(() => renderType("hero"), 50);
+  }
+
   const index = SHOWCASE_TYPES.indexOf(showcaseType);
   const go = (delta: number) => {
     void switchShowcase(SHOWCASE_TYPES[(index + delta + SHOWCASE_TYPES.length) % SHOWCASE_TYPES.length]);
@@ -209,6 +258,31 @@ export function ShowcaseGeneratorModal({
             <PoseSlider label="Size" min={80} max={350} value={pose.size} onChange={(size) => adjustPose({ size })} />
             <PoseSlider label="Horizontal" min={0} max={100} value={pose.x} onChange={(x) => adjustPose({ x })} />
             <PoseSlider label="Vertical" min={0} max={100} value={pose.y} onChange={(y) => adjustPose({ y })} />
+
+            <div className="mt-1 flex flex-col gap-1.5 border-t border-white/10 pt-3">
+              {hasSavedPose && (
+                <span className="text-[11px] font-semibold text-emerald-400">
+                  ✓ Saved — reused automatically next time {featuredUnit?.DisplayName || "this unit"} is featured.
+                </span>
+              )}
+              <div className="flex gap-1.5">
+                <button
+                  onClick={saveCurrentPose}
+                  disabled={!featuredUnit}
+                  className="flex-1 rounded-md bg-white/15 px-2 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Save config for this unit
+                </button>
+                {hasSavedPose && (
+                  <button
+                    onClick={resetCurrentPose}
+                    className="rounded-md border border-white/15 px-2 py-1.5 text-[11px] font-semibold text-white/70 transition-colors hover:bg-white/10"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

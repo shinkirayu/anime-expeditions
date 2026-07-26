@@ -18,6 +18,12 @@ export interface MatchInfo {
   SessionTime?: number;
 }
 
+export interface ActProgress {
+  Name: string;
+  Unlocked?: boolean;
+  Completed?: boolean;
+}
+
 export interface StoryProgress {
   Locked?: boolean;
   RequiredLevel?: number;
@@ -27,6 +33,8 @@ export interface StoryProgress {
   NextMap?: string;
   NextAct?: string;
   Completed?: boolean;
+  /** Per-act unlock breakdown — only populated for Villain Invasion. */
+  Acts?: ActProgress[] | null;
 }
 
 export interface ProgressInfo {
@@ -36,6 +44,7 @@ export interface ProgressInfo {
   CompletedMaps?: string[];
   Story?: StoryProgress | null;
   Raid?: StoryProgress | null;
+  VillainInvasion?: StoryProgress | null;
 }
 
 /** Light list row — only the columns in ACCOUNT_LIST_COLUMNS are fetched. */

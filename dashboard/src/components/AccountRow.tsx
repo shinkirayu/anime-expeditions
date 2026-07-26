@@ -5,6 +5,7 @@ import { isOnline } from "../lib/types";
 import { fmtNum, getCurrencyEntry, getLocationLabel, timeAgo } from "../lib/format";
 import { BackpackIcon, SwordIcon } from "./icons";
 import { AssetImage } from "./AssetImage";
+import { CROW_RELIC_ICON } from "../lib/assetIcon";
 import { MiniProgressBar } from "./MiniProgressBar";
 import { StageBadge } from "./StageBadge";
 
@@ -21,6 +22,7 @@ export const AccountRow = memo(function AccountRow({
   const online = isOnline(account.last_seen);
   const gems = getCurrencyEntry(account.currencies, "gem");
   const traitCrystal = getCurrencyEntry(account.currencies, "trait crystal");
+  const crowRelic = getCurrencyEntry(account.currencies, "crowrelic");
   const location = getLocationLabel(account.progress, online);
 
   return (
@@ -52,11 +54,20 @@ export const AccountRow = memo(function AccountRow({
           {fmtNum(traitCrystal?.Amount ?? 0)}
         </span>
       </td>
+      <td className="px-3 py-2.5 text-center align-middle tabular-nums">
+        <span className="inline-flex items-center gap-1">
+          <AssetImage rbxAssetId={crowRelic?.Icon ?? CROW_RELIC_ICON} alt="Crow Relic" fallback="🪶" />
+          {fmtNum(crowRelic?.Amount ?? 0)}
+        </span>
+      </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <MiniProgressBar percent={account.progress?.Story?.Percent} completed={account.progress?.Story?.Completed} />
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <StageBadge story={account.progress?.Raid} />
+      </td>
+      <td className="px-3 py-2.5 text-center align-middle">
+        <StageBadge story={account.progress?.VillainInvasion} />
       </td>
       <td className="px-3 py-2.5 text-center align-middle">
         <button
