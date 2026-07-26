@@ -92,6 +92,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   const quickHeroRef = useRef<HTMLDivElement>(null);
   const quickUnitsRef = useRef<HTMLDivElement>(null);
   const quickInventoryRef = useRef<HTMLDivElement>(null);
+  const autoFetchAttempted = useRef(false);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
 
@@ -126,6 +127,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
     if (!showcaseAccount) return;
     setFetchingAll(true);
     try {
+      await new Promise((r) => setTimeout(r, 300)); // let off-screen art/icons finish loading
       const jobs: { ref: React.RefObject<HTMLDivElement | null>; label: string }[] = [
         { ref: quickInventoryRef, label: "inventory" },
         { ref: quickUnitsRef, label: "units" },
@@ -146,6 +148,17 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
       setFetchingAll(false);
     }
   }
+
+  // Runs the same "quick fetch all 3" grab automatically once, as soon as a
+  // showcase account is available — no button click needed. The button stays
+  // available afterward for a manual re-fetch (e.g. after saving a different
+  // pose config for the featured unit).
+  useEffect(() => {
+    if (!showcaseAccount || autoFetchAttempted.current) return;
+    autoFetchAttempted.current = true;
+    void fetchAllShowcases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showcaseAccount]);
 
   /** Promotes a photo to the front of the list, making it the main offer image. */
   function setAsMainPhoto(id: string): void {
@@ -582,7 +595,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
                 type="button"
                 className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700"
               >
-                {fetchingAll ? "Fetching…" : "Quick fetch all 3"}
+                {fetchingAll ? "Fetching…" : "Refetch showcase photos"}
               </button>
               <button
                 onClick={() => setShowcaseModalOpen(true)}
@@ -596,7 +609,8 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
         </div>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
           The first photo becomes the main offer image — click a photo's star to make it the main one.
-          {showcaseAccount && " \"Quick fetch all 3\" grabs Inventory, Units, and Hero at once, with Hero set as the main photo."}
+          {showcaseAccount &&
+            " Inventory, Units, and Hero are fetched automatically, with Hero set as the main photo — use \"Refetch\" to redo it (e.g. after saving a different pose)."}
         </p>
 
         <div

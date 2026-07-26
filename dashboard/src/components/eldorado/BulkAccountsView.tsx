@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { useToast } from "../Toast";
+import { EldoradoListingModal } from "../EldoradoListingModal";
+import { useAccountByUsername, useAccountDetails } from "../../hooks/useAccountDetail";
+import { buildDefaultDescription, buildDefaultTitle } from "../../lib/eldoradoDescribe";
 import {
   clearBulkAccounts,
   getBulkAccounts,
@@ -17,6 +20,15 @@ export function BulkAccountsView() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
+  const [listingUsernames, setListingUsernames] = useState<string[]>([]);
+  const [eldoradoOpen, setEldoradoOpen] = useState(false);
+
+  // When listing a single bulk account, try to match it to a tracked dashboard
+  // account by username so the showcase auto-fetch ("Quick fetch all 3" /
+  // "Use account showcase") works here too, same as the Units tab.
+  const soloListingUsername = listingUsernames.length === 1 ? listingUsernames[0] : null;
+  const soloAccount = useAccountByUsername(soloListingUsername);
+  const soloDetails = useAccountDetails(soloAccount.data?.user_id ?? null);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -68,6 +80,16 @@ export function BulkAccountsView() {
     setAccounts(clearBulkAccounts());
     setSelected(new Set());
     toast.info("Cleared all accounts");
+  }
+
+  /** Lists 2+ (or just 1) selected credentials on Eldorado as one Automatic-delivery offer. */
+  function listSelected(): void {
+    if (selected.size === 0) return;
+    const chosen = accounts.filter((a) => selected.has(a.id));
+    setAccounts(setBulkAccountsUsed([...selected], true));
+    setListingUsernames(chosen.map((a) => a.user));
+    setSelected(new Set());
+    setEldoradoOpen(true);
   }
 
   return (
@@ -191,6 +213,13 @@ export function BulkAccountsView() {
             <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 p-3 dark:border-white/10">
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{selected.size} selected</span>
               <button
+                onClick={listSelected}
+                disabled={!selected.size}
+                className="gradient-purple rounded-lg px-2 py-1 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                List on Eldorado
+              </button>
+              <button
                 onClick={() => mark(false)}
                 disabled={!selected.size}
                 className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium disabled:opacity-40 dark:border-zinc-700"
@@ -221,6 +250,20 @@ export function BulkAccountsView() {
           </>
         )}
       </div>
+
+      {eldoradoOpen && (
+        <EldoradoListingModal
+          initialTitle={soloAccount.data ? buildDefaultTitle(soloAccount.data) : `Bulk accounts — ${listingUsernames.length} account(s)`}
+          initialDescription={
+            soloAccount.data
+              ? buildDefaultDescription(soloAccount.data, soloDetails.data)
+              : `${listingUsernames.length} account credentials from the Bulk Accounts pool.`
+          }
+          initialAccountUsernames={listingUsernames}
+          showcaseAccount={soloAccount.data ? { account: soloAccount.data, details: soloDetails.data } : undefined}
+          onClose={() => setEldoradoOpen(false)}
+        />
+      )}
     </div>
   );
 }

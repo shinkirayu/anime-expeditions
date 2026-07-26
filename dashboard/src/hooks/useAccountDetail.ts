@@ -21,6 +21,23 @@ export function useAccount(userId: number | null) {
 }
 
 /**
+ * Looks up a tracked account by username (case-insensitive) instead of user_id —
+ * used where only a username is known, e.g. matching a Bulk Accounts pool
+ * entry back to its tracked account for the showcase auto-fetch.
+ */
+export function useAccountByUsername(username: string | null) {
+  return useQuery({
+    queryKey: ["account-by-username", username?.toLowerCase()],
+    enabled: !!username,
+    queryFn: async (): Promise<AccountRow | null> => {
+      const { data, error } = await supabase.from("accounts").select("*").ilike("username", username!).maybeSingle();
+      if (error) throw error;
+      return data as AccountRow | null;
+    },
+  });
+}
+
+/**
  * Heavy payload (units + inventory) — lazily fetched only when the detail
  * page mounts, never polled in the background.
  */
