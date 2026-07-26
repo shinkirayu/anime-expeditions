@@ -162,3 +162,25 @@ export interface PublishResult {
   offerId: string;
   uploadedImages: number;
 }
+
+/** One account queued for the sequential bulk auto-lister (fetch showcase -> publish -> next). */
+export interface BulkListingTarget {
+  /** Unique within the batch — a user_id or bulk-account id. */
+  key: string;
+  title: string;
+  description: string;
+  /** Automatic-delivery credential blob (real or placeholder) — unused for Manual delivery. */
+  accountBlob: string;
+  /** When set, that account's showcase is auto-fetched (Hero/Units/Inventory) before publishing. */
+  showcaseAccount?: { account: import("./types").AccountRow; details: import("./types").AccountDetailsRow | null | undefined };
+  /** Marked "listed" (Units tab tag) once this target's publish succeeds. */
+  listingUserId?: number;
+}
+
+export type BulkListingStatus = "pending" | "fetching" | "publishing" | "done" | "error" | "skipped";
+
+export interface BulkListingState {
+  status: BulkListingStatus;
+  offerId?: string;
+  error?: string;
+}

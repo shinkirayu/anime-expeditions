@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useToast } from "../Toast";
 import { EldoradoListingModal } from "../EldoradoListingModal";
+import { BulkAutoListModal } from "./BulkAutoListModal";
 import { useAccountByUsername, useAccountDetails } from "../../hooks/useAccountDetail";
 import { buildDefaultDescription, buildDefaultTitle } from "../../lib/eldoradoDescribe";
 import {
@@ -217,7 +218,7 @@ export function BulkAccountsView() {
                 disabled={!selected.size}
                 className="gradient-purple rounded-lg px-2 py-1 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                List on Eldorado
+                {selected.size > 1 ? `Bulk list on Eldorado (${selected.size})` : "List on Eldorado"}
               </button>
               <button
                 onClick={() => mark(false)}
@@ -251,7 +252,11 @@ export function BulkAccountsView() {
         )}
       </div>
 
-      {eldoradoOpen && (
+      {eldoradoOpen && listingUsernames.length > 1 && (
+        <BulkAutoListModal usernames={listingUsernames} onClose={() => setEldoradoOpen(false)} />
+      )}
+
+      {eldoradoOpen && listingUsernames.length <= 1 && (
         <EldoradoListingModal
           initialTitle={soloAccount.data ? buildDefaultTitle(soloAccount.data) : `Bulk accounts — ${listingUsernames.length} account(s)`}
           initialDescription={

@@ -9,6 +9,7 @@ import { isAccountListed } from "../lib/listedAccounts";
 import { StarIcon, SwordIcon } from "../components/icons";
 import { CloseButton } from "../components/CloseButton";
 import { EldoradoListingModal } from "../components/EldoradoListingModal";
+import { BulkAutoListModal } from "../components/eldorado/BulkAutoListModal";
 import { ZeusXListingModal } from "../components/ZeusXListingModal";
 import { UnitIconImage } from "../components/UnitIconImage";
 
@@ -272,7 +273,7 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
                 onClick={() => setEldoradoOpen(true)}
                 className="rounded-md border border-fuchsia-300 bg-white px-2 py-1 text-[11px] font-semibold text-fuchsia-600 transition-colors hover:border-fuchsia-400 dark:border-fuchsia-500/40 dark:bg-white/5 dark:text-fuchsia-400"
               >
-                List on Eldorado
+                {selected.size > 1 ? `Bulk list on Eldorado (${selected.size})` : "List on Eldorado"}
               </button>
               <button
                 onClick={() => setZeusxOpen(true)}
@@ -353,7 +354,11 @@ function UnitOwnersModal({ unit, onClose }: { unit: AggregatedUnit; onClose: () 
         </div>
       </div>
 
-      {eldoradoOpen && (
+      {eldoradoOpen && selected.size > 1 && (
+        <BulkAutoListModal usernames={selectedUsernames()} onClose={() => setEldoradoOpen(false)} />
+      )}
+
+      {eldoradoOpen && selected.size <= 1 && (
         <EldoradoListingModal
           initialTitle={
             soloAccount.data ? buildDefaultTitle(soloAccount.data) : `${unit.displayName} owners — ${selected.size || accountCount} accounts`
