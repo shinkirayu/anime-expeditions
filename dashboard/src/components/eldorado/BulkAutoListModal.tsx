@@ -11,6 +11,7 @@ import { renderShowcasePng } from "../../lib/exportShowcase";
 import { rarityRank } from "../../lib/format";
 import { buildDefaultDescription, buildDefaultTitle } from "../../lib/eldoradoDescribe";
 import { getSavedUnitPose } from "../../lib/showcasePoseConfig";
+import { getLastBulkRunConfig, saveLastBulkRunConfig } from "../../lib/bulkRunConfig";
 import { useEldoradoGames } from "../../hooks/useEldoradoGames";
 import { MANUAL_DELIVERY_TIMES, PRICE_LIMITS, buildAccountBlobForUsername, getCachedGame, publishListing, setCachedGame } from "../../lib/eldorado";
 import { markAccountsListed } from "../../lib/listedAccounts";
@@ -81,10 +82,11 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
   );
 
   const cached = useMemo(() => getCachedGame(), []);
+  const lastRun = useMemo(() => getLastBulkRunConfig(), []);
   const [gameId, setGameId] = useState(cached?.gameId ?? "");
-  const [price, setPrice] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("Automatic");
-  const [manualDeliveryTime, setManualDeliveryTime] = useState("Hour1");
+  const [price, setPrice] = useState(lastRun?.price ?? "");
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(lastRun?.deliveryMethod ?? "Automatic");
+  const [manualDeliveryTime, setManualDeliveryTime] = useState(lastRun?.manualDeliveryTime ?? "Hour1");
 
   const [states, setStates] = useState<Record<string, BulkListingState>>(() =>
     Object.fromEntries(usernames.map((u) => [u, { status: "pending" as BulkListingStatus }])),
@@ -196,6 +198,7 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
     const priceNum = Number.parseFloat(price);
     if (!gameId) return toast.error("Select a game.");
     if (!Number.isFinite(priceNum) || priceNum < PRICE_LIMITS.minOfferValue) return toast.error("Enter a valid price.");
+    saveLastBulkRunConfig({ price, deliveryMethod, manualDeliveryTime });
     stopRef.current = false;
     setRunning(true);
     setCurrentIndex(0);
