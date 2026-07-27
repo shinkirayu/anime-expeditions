@@ -180,3 +180,30 @@ export function getLocationLabel(progress: ProgressLike | null | undefined, onli
   }
   return place;
 }
+
+interface FullMatchLike {
+  InMatch?: boolean;
+  Match?: {
+    MapName?: string;
+    ActName?: string;
+    Difficulty?: string;
+    Gamemode?: string;
+    Wave?: number;
+    MaxWave?: number;
+  } | null;
+}
+
+/** Everything known about the account's current location, for a hover tooltip — the compact label above only shows a slice of this. */
+export function getLocationDetail(progress: FullMatchLike | null | undefined, online: boolean): string {
+  if (!online) return "Offline — not currently reporting in";
+  if (!progress?.InMatch || !progress.Match) return "Lobby — not in a match";
+  const m = progress.Match;
+  const parts = [m.MapName, actToRoman(m.ActName) ? `Act ${actToRoman(m.ActName)}` : m.ActName]
+    .filter(Boolean)
+    .join(" ");
+  const lines = [parts || "In match"];
+  if (m.Gamemode) lines.push(`Gamemode: ${m.Gamemode}`);
+  if (m.Difficulty) lines.push(`Difficulty: ${m.Difficulty}`);
+  if (m.Wave != null && m.MaxWave != null) lines.push(`Wave ${m.Wave}/${m.MaxWave}`);
+  return lines.join("\n");
+}

@@ -1,6 +1,8 @@
 import type { AccountFilters, SortKey } from "../lib/types";
+import type { ColumnPrefs } from "../lib/columnPrefs";
 import { SearchIcon } from "./icons";
 import { Dropdown } from "./Dropdown";
+import { ColumnsMenu } from "./ColumnsMenu";
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "last_seen", label: "Last seen" },
@@ -17,9 +19,20 @@ interface Props {
   onClear: () => void;
   /** Rows currently loaded into the list — not a total match count (the app deliberately avoids COUNT queries). */
   loadedCount: number;
+  columns: ColumnPrefs;
+  onColumns: (next: ColumnPrefs) => void;
 }
 
-export function FilterBar({ searchInput, onSearchInput, filters, onFilters, onClear, loadedCount }: Props) {
+export function FilterBar({
+  searchInput,
+  onSearchInput,
+  filters,
+  onFilters,
+  onClear,
+  loadedCount,
+  columns,
+  onColumns,
+}: Props) {
   const chip = (active: boolean) =>
     `rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
       active
@@ -65,6 +78,7 @@ export function FilterBar({ searchInput, onSearchInput, filters, onFilters, onCl
           label="Sort"
           ariaLabel="Sort accounts"
         />
+        <ColumnsMenu prefs={columns} onChange={onColumns} />
         {hasActiveFilters && (
           <button
             onClick={onClear}
