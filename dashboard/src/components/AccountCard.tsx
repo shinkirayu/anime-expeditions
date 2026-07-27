@@ -5,10 +5,10 @@ import { isOnline } from "../lib/types";
 import type { ColumnPrefs } from "../lib/columnPrefs";
 import {
   fmtNum,
+  getBannerSecretPity,
   getCurrencyEntry,
   getLocationDetail,
   getLocationLabel,
-  getSecretPitySummary,
   onlineStatusTitle,
   timeAgo,
 } from "../lib/format";
@@ -42,7 +42,8 @@ export const AccountCard = memo(function AccountCard({
   const villainCoins = getCurrencyEntry(account.currencies, "villain");
   const location = getLocationLabel(account.progress, online);
   const locationDetail = getLocationDetail(account.progress, online);
-  const secretPity = getSecretPitySummary(account.pity);
+  const standardPity = getBannerSecretPity(account.pity, "Standard");
+  const villainPity = getBannerSecretPity(account.pity, "VillainInvasion");
 
   const showBadges = columns.story || columns.raid || columns.villain;
   const showButtons = columns.unitsButton || columns.itemsButton;
@@ -123,8 +124,15 @@ export const AccountCard = memo(function AccountCard({
             {location}
           </span>
         )}
-        {columns.secretPity && secretPity && (
-          <span className="text-zinc-500 dark:text-zinc-400">Secret Pity: {secretPity}</span>
+        {columns.standardPity && standardPity != null && (
+          <span className="inline-flex items-center gap-1" title="Standard banner Secret pity">
+            🎯 {fmtNum(standardPity)}
+          </span>
+        )}
+        {columns.villainPity && villainPity != null && (
+          <span className="inline-flex items-center gap-1" title="Villain banner Secret pity">
+            😈 {fmtNum(villainPity)}
+          </span>
         )}
       </div>
 

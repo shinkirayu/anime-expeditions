@@ -5,10 +5,10 @@ import { isOnline } from "../lib/types";
 import type { ColumnPrefs } from "../lib/columnPrefs";
 import {
   fmtNum,
+  getBannerSecretPity,
   getCurrencyEntry,
   getLocationDetail,
   getLocationLabel,
-  getSecretPitySummary,
   onlineStatusTitle,
   timeAgo,
 } from "../lib/format";
@@ -42,7 +42,8 @@ export const AccountRow = memo(function AccountRow({
   const villainCoins = getCurrencyEntry(account.currencies, "villain");
   const location = getLocationLabel(account.progress, online);
   const locationDetail = getLocationDetail(account.progress, online);
-  const secretPity = getSecretPitySummary(account.pity);
+  const standardPity = getBannerSecretPity(account.pity, "Standard");
+  const villainPity = getBannerSecretPity(account.pity, "VillainInvasion");
 
   return (
     <tr
@@ -111,9 +112,14 @@ export const AccountRow = memo(function AccountRow({
           </span>
         </td>
       )}
-      {columns.secretPity && (
-        <td className="truncate px-3 py-2.5 text-center align-middle text-xs tabular-nums text-zinc-600 dark:text-zinc-300">
-          {secretPity ?? "—"}
+      {columns.standardPity && (
+        <td className="px-3 py-2.5 text-center align-middle text-xs tabular-nums text-zinc-600 dark:text-zinc-300">
+          {standardPity != null ? fmtNum(standardPity) : "—"}
+        </td>
+      )}
+      {columns.villainPity && (
+        <td className="px-3 py-2.5 text-center align-middle text-xs tabular-nums text-zinc-600 dark:text-zinc-300">
+          {villainPity != null ? fmtNum(villainPity) : "—"}
         </td>
       )}
       {columns.story && (

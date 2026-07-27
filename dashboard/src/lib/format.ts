@@ -113,19 +113,12 @@ interface BannerPityLike {
   Secret?: number;
 }
 
-/**
- * Secret-rarity pity across every banner that has one — currently only the
- * Standard banner defines a Secret pity in the game's own config, but this
- * reads whatever's actually in the data rather than hardcoding "Standard" so
- * it picks up automatically if another banner ever gets one too. Returns
- * null when no banner has a Secret counter yet (nothing summoned there).
- */
-export function getSecretPitySummary(pity: Record<string, BannerPityLike> | null | undefined): string | null {
-  if (!pity) return null;
-  const parts = Object.entries(pity)
-    .filter(([, p]) => p.Secret != null)
-    .map(([bannerId, p]) => `${BANNER_NAMES[bannerId] ?? bannerId} ${fmtNum(p.Secret)}`);
-  return parts.length > 0 ? parts.join(" · ") : null;
+/** Bare Secret-pity counter for one specific banner id — undefined if that banner has no data yet. */
+export function getBannerSecretPity(
+  pity: Record<string, BannerPityLike> | null | undefined,
+  bannerId: string,
+): number | undefined {
+  return pity?.[bannerId]?.Secret;
 }
 
 interface CurrencyLike {
