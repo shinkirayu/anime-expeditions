@@ -3,7 +3,15 @@ import { Link } from "react-router-dom";
 import type { AccountListRow } from "../lib/types";
 import { isOnline } from "../lib/types";
 import type { ColumnPrefs } from "../lib/columnPrefs";
-import { fmtNum, getCurrencyEntry, getLocationDetail, getLocationLabel, onlineStatusTitle, timeAgo } from "../lib/format";
+import {
+  fmtNum,
+  getCurrencyEntry,
+  getLocationDetail,
+  getLocationLabel,
+  getSecretPitySummary,
+  onlineStatusTitle,
+  timeAgo,
+} from "../lib/format";
 import { BackpackIcon, SwordIcon } from "./icons";
 import { AssetImage } from "./AssetImage";
 import { CROW_RELIC_ICON } from "../lib/assetIcon";
@@ -34,6 +42,7 @@ export const AccountCard = memo(function AccountCard({
   const villainCoins = getCurrencyEntry(account.currencies, "villain");
   const location = getLocationLabel(account.progress, online);
   const locationDetail = getLocationDetail(account.progress, online);
+  const secretPity = getSecretPitySummary(account.pity);
 
   const showBadges = columns.story || columns.raid || columns.villain;
   const showButtons = columns.unitsButton || columns.itemsButton;
@@ -113,6 +122,9 @@ export const AccountCard = memo(function AccountCard({
           >
             {location}
           </span>
+        )}
+        {columns.secretPity && secretPity && (
+          <span className="text-zinc-500 dark:text-zinc-400">Secret Pity: {secretPity}</span>
         )}
       </div>
 

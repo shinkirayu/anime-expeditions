@@ -184,6 +184,7 @@ export default function DashboardPage() {
                 {columns.traitCrystal && <col className="w-[6%]" />}
                 {columns.crowRelic && <col className="w-[6%]" />}
                 {columns.villainCoins && <col className="w-[6%]" />}
+                {columns.secretPity && <col className="w-[9%]" />}
                 {columns.story && <col className="w-[7%]" />}
                 {columns.raid && <col className="w-[6%]" />}
                 {columns.villain && <col className="w-[6%]" />}
@@ -203,6 +204,7 @@ export default function DashboardPage() {
                   {columns.traitCrystal && <th className="px-3 py-3 text-center font-semibold">Trait Crystal</th>}
                   {columns.crowRelic && <th className="px-3 py-3 text-center font-semibold">Crow Relic</th>}
                   {columns.villainCoins && <th className="px-3 py-3 text-center font-semibold">Villain Coins</th>}
+                  {columns.secretPity && <th className="px-3 py-3 text-center font-semibold">Secret Pity</th>}
                   {columns.story && <th className="px-3 py-3 text-center font-semibold">Story</th>}
                   {columns.raid && <th className="px-3 py-3 text-center font-semibold">Raid</th>}
                   {columns.villain && <th className="px-3 py-3 text-center font-semibold">Villain</th>}

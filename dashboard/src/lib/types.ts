@@ -47,6 +47,13 @@ export interface ProgressInfo {
   VillainInvasion?: StoryProgress | null;
 }
 
+/** Summon pity counters for one banner (data.BannerData[id].Pity in the tracker payload). */
+export interface BannerPity {
+  Mythic?: number;
+  Legendary?: number;
+  Secret?: number;
+}
+
 /** Light list row — only the columns in ACCOUNT_LIST_COLUMNS are fetched. */
 export interface AccountListRow {
   user_id: number;
@@ -59,6 +66,8 @@ export interface AccountListRow {
   item_count: number;
   in_match: boolean;
   progress: ProgressInfo;
+  /** Keyed by banner id (e.g. "Standard") — only present once the account has summoned on that banner. */
+  pity: Record<string, BannerPity>;
   last_seen: string;
 }
 
@@ -100,13 +109,6 @@ export interface InventoryEntry {
   SubType?: string;
   Rarity?: string;
   Icon?: string;
-}
-
-/** Summon pity counters for one banner (data.BannerData[id].Pity in the tracker payload). */
-export interface BannerPity {
-  Mythic?: number;
-  Legendary?: number;
-  Secret?: number;
 }
 
 export interface EquipmentStatEntry {
@@ -153,7 +155,7 @@ export interface AccountFilters {
 
 /** Column list for the account grid — never SELECT * on the hot path. */
 export const ACCOUNT_LIST_COLUMNS =
-  "user_id,username,display_name,level,exp,currencies,unit_count,item_count,in_match,progress,last_seen";
+  "user_id,username,display_name,level,exp,currencies,unit_count,item_count,in_match,progress,pity,last_seen";
 
 export const PAGE_SIZE = 30;
 

@@ -10,6 +10,7 @@ export type ColumnKey =
   | "traitCrystal"
   | "crowRelic"
   | "villainCoins"
+  | "secretPity"
   | "story"
   | "raid"
   | "villain"
@@ -22,6 +23,7 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   traitCrystal: "Trait Crystal",
   crowRelic: "Crow Relic",
   villainCoins: "Villain Coins",
+  secretPity: "Secret Pity",
   story: "Story",
   raid: "Raid",
   villain: "Villain",
