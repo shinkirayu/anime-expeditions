@@ -3,11 +3,23 @@ import { Link, useParams } from "react-router-dom";
 import { useAccount, useAccountDetails } from "../hooks/useAccountDetail";
 import { useAccountRealtime } from "../hooks/useAccountsRealtime";
 import { isOnline, type UnitEntry } from "../lib/types";
-import { fmtFullNum, fmtNum, fmtPlaytime, getCurrencyEntry, rarityBoxStyle, rarityClass, timeAgo } from "../lib/format";
+import {
+  BANNER_NAMES,
+  BANNER_PITY_THRESHOLDS,
+  fmtFullNum,
+  fmtNum,
+  fmtPlaytime,
+  getCurrencyEntry,
+  onlineStatusTitle,
+  rarityBoxStyle,
+  rarityClass,
+  timeAgo,
+} from "../lib/format";
 import { downloadDataUrl } from "../lib/exportShowcase";
 import { BarChart } from "../components/BarChart";
 import { AssetImage } from "../components/AssetImage";
 import { CROW_RELIC_ICON } from "../lib/assetIcon";
+import { wikiItemIconUrl } from "../lib/itemImages";
 import { ShowcaseGeneratorModal } from "../components/ShowcaseGeneratorModal";
 import { EldoradoListingModal } from "../components/EldoradoListingModal";
 import { ZeusXListingModal } from "../components/ZeusXListingModal";
@@ -61,6 +73,7 @@ export default function AccountPage() {
   const gems = useMemo(() => getCurrencyEntry(account?.currencies, "gem"), [account]);
   const traitCrystal = useMemo(() => getCurrencyEntry(account?.currencies, "trait crystal"), [account]);
   const crowRelic = useMemo(() => getCurrencyEntry(account?.currencies, "crowrelic"), [account]);
+  const villainCoins = useMemo(() => getCurrencyEntry(account?.currencies, "villain"), [account]);
 
   // Currencies (Gems, Trait Crystal, ...) shown pinned at the top of the
   // inventory list instead of a separate currency section. Pinned currencies
@@ -137,6 +150,7 @@ export default function AccountPage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-xl font-semibold">{account.display_name || account.username}</h1>
               <span
+                title={onlineStatusTitle(account.last_seen, online)}
                 className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   online
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
@@ -158,7 +172,7 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           <Tile
             label="Gems"
             value={fmtFullNum(gems?.Amount ?? 0)}
@@ -175,6 +189,19 @@ export default function AccountPage() {
             label="Crow Relic"
             value={fmtFullNum(crowRelic?.Amount ?? 0)}
             icon={<AssetImage rbxAssetId={crowRelic?.Icon ?? CROW_RELIC_ICON} alt="Crow Relic" className="size-5" fallback="🪶" />}
+          />
+          <Tile
+            label="Villain Coins"
+            value={fmtFullNum(villainCoins?.Amount ?? 0)}
+            icon={
+              <AssetImage
+                src={wikiItemIconUrl("Villain Coins")}
+                rbxAssetId={villainCoins?.Icon}
+                alt="Villain Coins"
+                className="size-5"
+                fallback="👹"
+              />
+            }
           />
           <Tile label="Units" value={fmtFullNum(account.unit_count)} />
           <Tile label="Items" value={fmtFullNum(account.item_count)} />
@@ -202,6 +229,35 @@ export default function AccountPage() {
           <VillainInvasionActs acts={account.progress?.VillainInvasion?.Acts} />
         </div>
       </Section>
+
+      {/* Summon pity — only rendered once the account has summoned on at least one banner. */}
+      {details.data?.pity && Object.keys(details.data.pity).length > 0 && (
+        <Section title="Summon Pity">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(details.data.pity).map(([bannerId, pity]) => (
+              <div key={bannerId} className="rounded-lg bg-zinc-50 p-3 dark:bg-white/[0.04]">
+                <div className="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                  {BANNER_NAMES[bannerId] ?? bannerId}
+                </div>
+                <div className="space-y-1.5">
+                  {Object.entries(pity).map(([rarity, count]) => {
+                    const required = BANNER_PITY_THRESHOLDS[bannerId]?.[rarity];
+                    return (
+                      <div key={rarity} className="flex items-center justify-between text-xs">
+                        <span className={rarityClass(rarity)}>{rarity}</span>
+                        <span className="font-semibold tabular-nums">
+                          {fmtFullNum(count)}
+                          {required != null && <span className="text-zinc-400"> / {fmtFullNum(required)}</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* Live match state */}
       {account.in_match && account.progress?.Match && (

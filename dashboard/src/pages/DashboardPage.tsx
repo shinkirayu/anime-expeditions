@@ -4,6 +4,7 @@ import { useAccountsRealtime } from "../hooks/useAccountsRealtime";
 import { useDebounce } from "../hooks/useDebounce";
 import type { AccountFilters } from "../lib/types";
 import { AccountRow } from "../components/AccountRow";
+import { AccountCard } from "../components/AccountCard";
 import { InventoryModal } from "../components/InventoryModal";
 import { UnitsModal } from "../components/UnitsModal";
 import { FilterBar } from "../components/FilterBar";
@@ -30,6 +31,12 @@ export default function DashboardPage() {
 
   const accounts = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
   useAccountsRealtime();
+
+  const hasActiveFilters = filters.onlineOnly || filters.inMatchOnly || effectiveFilters.search.length > 0;
+  function clearFilters() {
+    setSearchInput("");
+    setFilters({ search: "", sort: filters.sort, onlineOnly: false, inMatchOnly: false });
+  }
 
   const [inventoryFor, setInventoryFor] = useState<number | null>(null);
   const inventoryAccount = useMemo(
@@ -69,6 +76,8 @@ export default function DashboardPage() {
         onSearchInput={setSearchInput}
         filters={filters}
         onFilters={setFilters}
+        onClear={clearFilters}
+        loadedCount={accounts.length}
       />
 
       {isError && (
@@ -81,25 +90,45 @@ export default function DashboardPage() {
         <SkeletonGrid />
       ) : accounts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center text-sm text-zinc-500 dark:border-fuchsia-500/15">
-          No accounts match. Waiting for trackers to report in…
+          {hasActiveFilters ? (
+            <>
+              <p>No accounts match your current filters.</p>
+              <button
+                onClick={clearFilters}
+                className="mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-white/5"
+              >
+                Clear filters
+              </button>
+            </>
+          ) : (
+            "No accounts yet. Waiting for trackers to report in…"
+          )}
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
-            <table className="w-full min-w-[820px] table-fixed text-left text-sm">
+          {/* Below md, a 12-column table can only ever scroll sideways — stack cards instead. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
+            {accounts.map((a) => (
+              <AccountCard key={a.user_id} account={a} onShowInventory={setInventoryFor} onShowUnits={setUnitsFor} />
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-2xl border border-zinc-200/80 bg-white shadow-sm md:block dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
+            <table className="w-full min-w-[900px] table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[17%]" />
+                <col className="w-[16%]" />
                 <col className="w-[5%]" />
-                <col className="w-[7%]" />
-                <col className="w-[7%]" />
-                <col className="w-[7%]" />
+                <col className="w-[6%]" />
+                <col className="w-[6%]" />
+                <col className="w-[6%]" />
+                <col className="w-[6%]" />
                 <col className="w-[7%]" />
                 <col className="w-[6%]" />
                 <col className="w-[6%]" />
                 <col className="w-[7%]" />
                 <col className="w-[7%]" />
-                <col className="w-[13%]" />
-                <col className="w-[11%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 text-[11px] tracking-wide text-fuchsia-700/70 uppercase dark:border-fuchsia-500/10 dark:text-fuchsia-300/60">
@@ -108,6 +137,7 @@ export default function DashboardPage() {
                   <th className="px-3 py-3 text-center font-semibold">Gems</th>
                   <th className="px-3 py-3 text-center font-semibold">Trait Crystal</th>
                   <th className="px-3 py-3 text-center font-semibold">Crow Relic</th>
+                  <th className="px-3 py-3 text-center font-semibold">Villain Coins</th>
                   <th className="px-3 py-3 text-center font-semibold">Story</th>
                   <th className="px-3 py-3 text-center font-semibold">Raid</th>
                   <th className="px-3 py-3 text-center font-semibold">Villain</th>

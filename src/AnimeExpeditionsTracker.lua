@@ -35,8 +35,9 @@ local CONFIG = {
 	-- doesn't show you as offline while you're actually still in-game.
 	HeartbeatInterval = 60.0,
 
-	-- Verbose discovery / diff logging.
-	Debug = true,
+	-- Verbose discovery / diff logging. Off by default — flip to true locally
+	-- when debugging; shipped scripts shouldn't spam a normal user's console.
+	Debug = false,
 
 	-- Replica token (Madwork ReplicaService class token) that holds live
 	-- "currently in a stage/expedition" state. Only present while a match
@@ -528,6 +529,24 @@ function Trackers.stats(data)
 	return Util.deepJsonSafe(data.Stats)
 end
 
+-- Per-banner summon pity counters (data.BannerData[bannerId].Pity[rarity]).
+-- Banner ids are dynamic and lazily created — a banner only appears here once
+-- the account has summoned on it at least once — so this reports whatever's
+-- present rather than a hardcoded banner list. Not every banner tracks every
+-- rarity (e.g. only the Standard banner currently has a Secret pity).
+function Trackers.pity(bannerData)
+	local out = {}
+	if typeof(bannerData) ~= "table" then
+		return out
+	end
+	for bannerId, banner in pairs(bannerData) do
+		if typeof(banner) == "table" and typeof(banner.Pity) == "table" then
+			out[bannerId] = Util.deepJsonSafe(banner.Pity)
+		end
+	end
+	return out
+end
+
 --// ---------------------------------------------------------------------------
 --// Snapshot assembly
 --// ---------------------------------------------------------------------------
@@ -551,6 +570,7 @@ function Tracker.build()
 		Units = Trackers.units(data.UnitData),
 		Progress = Trackers.progress(data),
 		Stats = Trackers.stats(data),
+		Pity = Trackers.pity(data.BannerData),
 	}
 end
 

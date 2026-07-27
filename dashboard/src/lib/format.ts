@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { ONLINE_WINDOW_MS } from "./types";
 
 /** Best-to-worst rarity order — used for "sort by rarity" and "best unit first" everywhere. */
 export const RARITY_ORDER = ["Secret", "Mythic", "Legendary", "Epic", "Rare"];
@@ -29,6 +30,14 @@ export function timeAgo(iso: string | null | undefined): string {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86_400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86_400)}d ago`;
+}
+
+/** Explains *why* the status dot/badge shows what it shows — the online window is a fixed 3min threshold, not obvious from a bare dot. */
+export function onlineStatusTitle(lastSeen: string | null | undefined, online: boolean): string {
+  const windowMin = Math.round(ONLINE_WINDOW_MS / 60_000);
+  return online
+    ? `Online — reported ${timeAgo(lastSeen)} (shows offline after ${windowMin}m of silence)`
+    : `Offline — hasn't reported in over ${windowMin}m (last seen ${timeAgo(lastSeen)})`;
 }
 
 export function fmtPlaytime(seconds: number | null | undefined): string {
@@ -78,6 +87,27 @@ export function rarityBoxStyle(rarity: string | undefined): CSSProperties {
     backgroundRepeat: "no-repeat",
   };
 }
+
+/** Banner id (data.BannerData key) -> the name the game itself shows for it. */
+export const BANNER_NAMES: Record<string, string> = {
+  Standard: "Standard",
+  Mini: "Mini",
+  NewPlayerEvent: "Beginner's",
+};
+
+/**
+ * Pity pull-counts required per rarity, copied from the game's own
+ * Shared.Information.BannerInfo config (not reported by the tracker itself,
+ * since it's static game data rather than account state) — lets the pity
+ * bar show "current / required" instead of just a bare counter. Banners not
+ * listed here, or rarities missing from a listed banner, simply render
+ * without a denominator.
+ */
+export const BANNER_PITY_THRESHOLDS: Record<string, Record<string, number>> = {
+  Standard: { Mythic: 400, Legendary: 50, Secret: 10000 },
+  Mini: { Mythic: 400, Legendary: 50 },
+  NewPlayerEvent: { Mythic: 50, Legendary: 20 },
+};
 
 interface CurrencyLike {
   Amount: number;

@@ -102,11 +102,20 @@ export interface InventoryEntry {
   Icon?: string;
 }
 
+/** Summon pity counters for one banner (data.BannerData[id].Pity in the tracker payload). */
+export interface BannerPity {
+  Mythic?: number;
+  Legendary?: number;
+  Secret?: number;
+}
+
 /** Heavy 1:1 row — lazily fetched only on the detail page. */
 export interface AccountDetailsRow {
   user_id: number;
   units: UnitEntry[];
   inventory: Record<string, InventoryEntry>;
+  /** Keyed by banner id (e.g. "Standard") — only present once the account has summoned on that banner. */
+  pity: Record<string, BannerPity>;
   updated_at: string;
 }
 

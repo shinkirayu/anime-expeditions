@@ -14,15 +14,20 @@ interface Props {
   onSearchInput: (v: string) => void;
   filters: AccountFilters;
   onFilters: (f: AccountFilters) => void;
+  onClear: () => void;
+  /** Rows currently loaded into the list — not a total match count (the app deliberately avoids COUNT queries). */
+  loadedCount: number;
 }
 
-export function FilterBar({ searchInput, onSearchInput, filters, onFilters }: Props) {
+export function FilterBar({ searchInput, onSearchInput, filters, onFilters, onClear, loadedCount }: Props) {
   const chip = (active: boolean) =>
     `rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
       active
         ? "gradient-purple border-transparent text-white shadow-[0_0_10px_rgba(129,19,255,0.45)]"
         : "border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-white/5"
     }`;
+
+  const hasActiveFilters = filters.onlineOnly || filters.inMatchOnly || searchInput.trim().length > 0;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:flex-row sm:items-center dark:border-fuchsia-500/10 dark:bg-white/[0.03]">
@@ -38,6 +43,9 @@ export function FilterBar({ searchInput, onSearchInput, filters, onFilters }: Pr
         />
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+        <span className="text-xs text-zinc-400 dark:text-zinc-500" aria-live="polite">
+          {loadedCount} loaded
+        </span>
         <button
           className={chip(filters.onlineOnly)}
           onClick={() => onFilters({ ...filters, onlineOnly: !filters.onlineOnly })}
@@ -57,6 +65,14 @@ export function FilterBar({ searchInput, onSearchInput, filters, onFilters }: Pr
           label="Sort"
           ariaLabel="Sort accounts"
         />
+        {hasActiveFilters && (
+          <button
+            onClick={onClear}
+            className="text-xs font-medium text-fuchsia-600 hover:underline dark:text-fuchsia-400"
+          >
+            Clear
+          </button>
+        )}
       </div>
     </div>
   );

@@ -58,6 +58,7 @@ export const WIKI_ITEM_ICONS: Record<string, string> = {
   "Player EXP": "https://static.wikitide.net/animeexpeditionswiki/thumb/0/03/Player_EXP_Icon.png/150px-Player_EXP_Icon.png",
   "Unit EXP": "https://static.wikitide.net/animeexpeditionswiki/thumb/9/9a/Unit_EXP_Icon.png/150px-Unit_EXP_Icon.png",
   "Battlepass EXP": "https://static.wikitide.net/animeexpeditionswiki/thumb/5/52/Battlepass_EXP_Icon.png/150px-Battlepass_EXP_Icon.png",
+  "Villain Coins": "https://static.wikitide.net/animeexpeditionswiki/thumb/9/9f/Villain_Coins_Icon.png/150px-Villain_Coins_Icon.png",
 };
 
 export function wikiItemIconUrl(name: string | undefined | null): string | null {

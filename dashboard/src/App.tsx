@@ -53,6 +53,12 @@ function Shell({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-1">
             <NavItem to="/">Accounts</NavItem>
             <NavItem to="/units">Units</NavItem>
+            <div
+              role="separator"
+              aria-label="Marketplace listing tools"
+              title="Marketplace listing tools"
+              className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-white/10"
+            />
             <NavItem to="/eldorado">Eldorado</NavItem>
             <NavItem to="/zeusx">ZeusX</NavItem>
           </nav>

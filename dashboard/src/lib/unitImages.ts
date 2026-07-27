@@ -19,6 +19,7 @@ export const UNIT_ICON_IMAGES: Record<string, string> = {
   Crimson: "https://static.wikitide.net/animeexpeditionswiki/thumb/0/01/Crimson.png/135px-Crimson.png",
   "Crimson (Brother)":
     "https://static.wikitide.net/animeexpeditionswiki/thumb/2/25/Crimson_%28Brother%29.png/135px-Crimson_%28Brother%29.png",
+  Crow: "https://static.wikitide.net/animeexpeditionswiki/thumb/f/fa/Crow.png/135px-Crow.png",
   "Curly Brow": "https://static.wikitide.net/animeexpeditionswiki/thumb/7/7e/Curly_Brow.png/135px-Curly_Brow.png",
   "Cursed Student":
     "https://static.wikitide.net/animeexpeditionswiki/thumb/6/60/Cursed_Student.png/135px-Cursed_Student.png",
@@ -102,6 +103,7 @@ export const UNIT_POSE_IMAGES: Record<string, string> = {
   "Corps Captain": "https://static.wikitide.net/animeexpeditionswiki/8/82/Corps_Captain_Pose.webp",
   Crimson: "https://static.wikitide.net/animeexpeditionswiki/b/b9/Crimson_Pose.webp",
   "Crimson (Brother)": "https://static.wikitide.net/animeexpeditionswiki/8/8c/Crimson_%28Brother%29_Pose.webp",
+  Crow: "https://static.wikitide.net/animeexpeditionswiki/9/9d/Crow_Pose.webp",
   "Curly Brow": "https://static.wikitide.net/animeexpeditionswiki/c/c7/Curly_Brow_Pose.webp",
   "Cursed Student": "https://static.wikitide.net/animeexpeditionswiki/4/4b/Cursed_Student_Pose.webp",
   "Cursed Student (True Love)":
