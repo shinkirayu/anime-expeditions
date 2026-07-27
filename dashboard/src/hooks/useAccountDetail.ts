@@ -50,7 +50,7 @@ export function useAccountDetails(userId: number | null) {
     queryFn: async (): Promise<AccountDetailsRow | null> => {
       const { data, error } = await supabase
         .from("account_details")
-        .select("user_id,units,inventory,raw,updated_at")
+        .select("user_id,units,inventory,equipment,raw,updated_at")
         .eq("user_id", userId!)
         .maybeSingle();
       if (error) throw error;

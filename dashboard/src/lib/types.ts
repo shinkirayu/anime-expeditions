@@ -109,11 +109,26 @@ export interface BannerPity {
   Secret?: number;
 }
 
+export interface EquipmentStatEntry {
+  Stat?: string;
+  Value?: number;
+}
+
+export interface EquipmentEntry {
+  UniqueId: string;
+  Asset?: string;
+  DisplayName?: string;
+  Rarity?: string;
+  Icon?: string;
+  Stats?: EquipmentStatEntry[];
+}
+
 /** Heavy 1:1 row — lazily fetched only on the detail page. */
 export interface AccountDetailsRow {
   user_id: number;
   units: UnitEntry[];
   inventory: Record<string, InventoryEntry>;
+  equipment: EquipmentEntry[];
   /** Keyed by banner id (e.g. "Standard") — only present once the account has summoned on that banner. */
   pity: Record<string, BannerPity>;
   updated_at: string;

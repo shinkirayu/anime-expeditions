@@ -12,16 +12,18 @@ import {
 } from "./AccountShowcaseCard";
 import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "./UnitsShowcaseCard";
 import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "./InventoryShowcaseCard";
+import { DEFAULT_EQUIPMENT_COLUMNS, EquipmentShowcaseCard } from "./EquipmentShowcaseCard";
 import { StatsShowcaseCard } from "./StatsShowcaseCard";
 import { CloseButton } from "./CloseButton";
 import { useToast } from "./Toast";
 
-const SHOWCASE_TYPES = ["hero", "units", "inventory", "stats"] as const;
+const SHOWCASE_TYPES = ["hero", "units", "inventory", "equipment", "stats"] as const;
 type ShowcaseType = (typeof SHOWCASE_TYPES)[number];
 const SHOWCASE_LABELS: Record<ShowcaseType, string> = {
   hero: "Hero",
   units: "Units",
   inventory: "Inventory",
+  equipment: "Equipment",
   stats: "Stats",
 };
 
@@ -52,6 +54,7 @@ export function ShowcaseGeneratorModal({
   const [featuredUnitId, setFeaturedUnitId] = useState<string | null>(null);
   const [unitColumns, setUnitColumns] = useState(DEFAULT_UNIT_COLUMNS);
   const [itemColumns, setItemColumns] = useState(DEFAULT_ITEM_COLUMNS);
+  const [equipmentColumns, setEquipmentColumns] = useState(DEFAULT_EQUIPMENT_COLUMNS);
   const [hasSavedPose, setHasSavedPose] = useState(false);
   const poseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const columnsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,11 +63,13 @@ export function ShowcaseGeneratorModal({
   const heroRef = useRef<HTMLDivElement>(null);
   const unitsRef = useRef<HTMLDivElement>(null);
   const inventoryRef = useRef<HTMLDivElement>(null);
+  const equipmentRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const showcaseRefs: Record<ShowcaseType, React.RefObject<HTMLDivElement | null>> = {
     hero: heroRef,
     units: unitsRef,
     inventory: inventoryRef,
+    equipment: equipmentRef,
     stats: statsRef,
   };
 
@@ -136,9 +141,10 @@ export function ShowcaseGeneratorModal({
     setFeaturedUnitId(unitId || null);
   }
 
-  function adjustColumns(type: "units" | "inventory", columns: number) {
+  function adjustColumns(type: "units" | "inventory" | "equipment", columns: number) {
     if (type === "units") setUnitColumns(columns);
-    else setItemColumns(columns);
+    else if (type === "inventory") setItemColumns(columns);
+    else setEquipmentColumns(columns);
     if (columnsDebounceRef.current) clearTimeout(columnsDebounceRef.current);
     columnsDebounceRef.current = setTimeout(() => renderType(type), 250);
   }
@@ -301,12 +307,27 @@ export function ShowcaseGeneratorModal({
             <p className="text-[11px] text-white/40">Fewer columns = bigger item tiles.</p>
           </div>
         )}
+
+        {showcaseType === "equipment" && (
+          <div className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border-l border-white/10 bg-white/5 p-3">
+            <p className="text-[11px] font-semibold text-white/50 uppercase">Tile size</p>
+            <PoseSlider
+              label="Columns"
+              min={3}
+              max={8}
+              value={equipmentColumns}
+              onChange={(columns) => adjustColumns("equipment", columns)}
+            />
+            <p className="text-[11px] text-white/40">Fewer columns = bigger equipment tiles.</p>
+          </div>
+        )}
       </div>
 
       <div className="pointer-events-none fixed top-0 -left-[9999px] opacity-0" aria-hidden="true">
         <AccountShowcaseCard ref={heroRef} account={account} details={details} pose={pose} visibleStats={visibleStats} unitId={featuredUnitId} />
         <UnitsShowcaseCard ref={unitsRef} account={account} details={details} columns={unitColumns} />
         <InventoryShowcaseCard ref={inventoryRef} account={account} details={details} columns={itemColumns} />
+        <EquipmentShowcaseCard ref={equipmentRef} account={account} details={details} columns={equipmentColumns} />
         <StatsShowcaseCard ref={statsRef} account={account} details={details} />
       </div>
     </div>

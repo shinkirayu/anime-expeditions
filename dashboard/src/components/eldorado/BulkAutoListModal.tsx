@@ -7,6 +7,7 @@ import { CloseButton } from "../CloseButton";
 import { AccountShowcaseCard } from "../AccountShowcaseCard";
 import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "../UnitsShowcaseCard";
 import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "../InventoryShowcaseCard";
+import { DEFAULT_EQUIPMENT_COLUMNS, EquipmentShowcaseCard } from "../EquipmentShowcaseCard";
 import { renderShowcasePng } from "../../lib/exportShowcase";
 import { rarityRank } from "../../lib/format";
 import { buildDefaultDescription, buildDefaultTitle } from "../../lib/eldoradoDescribe";
@@ -60,7 +61,7 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
         queryFn: async (): Promise<AccountDetailsRow | null> => {
           const { data, error } = await supabase
             .from("account_details")
-            .select("user_id,units,inventory,updated_at")
+            .select("user_id,units,inventory,equipment,updated_at")
             .eq("user_id", userId!)
             .maybeSingle();
           if (error) throw error;
@@ -130,6 +131,7 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
   const heroRef = useRef<HTMLDivElement>(null);
   const unitsRef = useRef<HTMLDivElement>(null);
   const inventoryRef = useRef<HTMLDivElement>(null);
+  const equipmentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (gameId || !gamesQuery.data) return;
@@ -185,6 +187,7 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
             { ref: heroRef, label: "hero" },
             { ref: unitsRef, label: "units" },
             { ref: inventoryRef, label: "inventory" },
+            { ref: equipmentRef, label: "equipment" },
           ];
           for (const { ref, label } of jobs) {
             if (!ref.current) continue;
@@ -466,6 +469,12 @@ export function BulkAutoListModal({ usernames, onClose }: { usernames: string[];
             account={current.showcaseAccount.account}
             details={current.showcaseAccount.details}
             columns={DEFAULT_ITEM_COLUMNS}
+          />
+          <EquipmentShowcaseCard
+            ref={equipmentRef}
+            account={current.showcaseAccount.account}
+            details={current.showcaseAccount.details}
+            columns={DEFAULT_EQUIPMENT_COLUMNS}
           />
         </div>
       )}

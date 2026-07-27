@@ -6,6 +6,7 @@ import { ShowcaseGeneratorModal } from "../ShowcaseGeneratorModal";
 import { AccountShowcaseCard, DEFAULT_POSE_TRANSFORM, DEFAULT_VISIBLE_STATS } from "../AccountShowcaseCard";
 import { DEFAULT_UNIT_COLUMNS, UnitsShowcaseCard } from "../UnitsShowcaseCard";
 import { DEFAULT_ITEM_COLUMNS, InventoryShowcaseCard } from "../InventoryShowcaseCard";
+import { DEFAULT_EQUIPMENT_COLUMNS, EquipmentShowcaseCard } from "../EquipmentShowcaseCard";
 import { renderShowcasePng } from "../../lib/exportShowcase";
 import { rarityRank } from "../../lib/format";
 import { getSavedUnitPose } from "../../lib/showcasePoseConfig";
@@ -92,6 +93,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   const quickHeroRef = useRef<HTMLDivElement>(null);
   const quickUnitsRef = useRef<HTMLDivElement>(null);
   const quickInventoryRef = useRef<HTMLDivElement>(null);
+  const quickEquipmentRef = useRef<HTMLDivElement>(null);
   const autoFetchAttempted = useRef(false);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
@@ -118,10 +120,10 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
   }
 
   /**
-   * One-click "grab everything" — renders Inventory, Units, and Hero (in that
-   * order) and adds all three as photos. Each add prepends, so Hero — added
-   * last — ends up first in the list, i.e. the main offer image, without
-   * needing any manual reordering.
+   * One-click "grab everything" — renders Equipment, Inventory, Units, and
+   * Hero (in that order) and adds all four as photos. Each add prepends, so
+   * Hero — added last — ends up first in the list, i.e. the main offer
+   * image, without needing any manual reordering.
    */
   async function fetchAllShowcases(): Promise<void> {
     if (!showcaseAccount) return;
@@ -129,6 +131,7 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
     try {
       await new Promise((r) => setTimeout(r, 300)); // let off-screen art/icons finish loading
       const jobs: { ref: React.RefObject<HTMLDivElement | null>; label: string }[] = [
+        { ref: quickEquipmentRef, label: "equipment" },
         { ref: quickInventoryRef, label: "inventory" },
         { ref: quickUnitsRef, label: "units" },
         { ref: quickHeroRef, label: "hero" },
@@ -873,6 +876,12 @@ export function NewListingView({ initialTitle, initialDescription, initialAccoun
             account={showcaseAccount.account}
             details={showcaseAccount.details}
             columns={DEFAULT_ITEM_COLUMNS}
+          />
+          <EquipmentShowcaseCard
+            ref={quickEquipmentRef}
+            account={showcaseAccount.account}
+            details={showcaseAccount.details}
+            columns={DEFAULT_EQUIPMENT_COLUMNS}
           />
         </div>
       )}

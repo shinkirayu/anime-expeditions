@@ -243,6 +243,7 @@ function StaticInfo.load()
 	StaticInfo.Units = tryRequire("Shared", "Information", "Units")
 	StaticInfo.Traits = tryRequire("Shared", "Information", "Traits")
 	StaticInfo.Gamemodes = tryRequire("Shared", "Information", "Gamemodes")
+	StaticInfo.Equipment = tryRequire("Shared", "Information", "Equipment")
 	local levelMod = tryRequire("Shared", "Information", "PlayerLevelInfo")
 	StaticInfo.LevelInfo = levelMod and levelMod.LevelInfo or nil
 end
@@ -529,6 +530,39 @@ function Trackers.stats(data)
 	return Util.deepJsonSafe(data.Stats)
 end
 
+-- Equipment.Info[Asset].Stats defines named stat slots, each with a Types
+-- list and per-type Min/Max ranges; the owned roll only stores a Type index
+-- and a 0..1 Value fraction per slot. GetCalculatedStats resolves that back
+-- into {Stat = <name>, Value = <interpolated number>} pairs — same math the
+-- game's own equipment UI uses, so this mirrors exactly what a player sees.
+function Trackers.equipment(equipmentData)
+	local out = {}
+	if typeof(equipmentData) ~= "table" or not StaticInfo.Equipment then
+		return out
+	end
+	for uniqueId, e in pairs(equipmentData) do
+		local def = StaticInfo.Equipment.Info and StaticInfo.Equipment.Info[e.Asset]
+		local stats = {}
+		local ok, calculated = pcall(function()
+			return StaticInfo.Equipment:GetCalculatedStats(e)
+		end)
+		if ok and typeof(calculated) == "table" then
+			for _, s in ipairs(calculated) do
+				table.insert(stats, { Stat = s.Stat, Value = s.Value })
+			end
+		end
+		table.insert(out, {
+			UniqueId = uniqueId,
+			Asset = e.Asset,
+			DisplayName = def and def.DisplayName or e.Asset,
+			Rarity = def and def.Rarity,
+			Icon = def and def.Icon,
+			Stats = stats,
+		})
+	end
+	return out
+end
+
 -- Per-banner summon pity counters (data.BannerData[bannerId].Pity[rarity]).
 -- Banner ids are dynamic and lazily created — a banner only appears here once
 -- the account has summoned on it at least once — so this reports whatever's
@@ -568,6 +602,7 @@ function Tracker.build()
 		Currencies = Trackers.currencies(data.ItemData),
 		Inventory = Trackers.inventory(data.ItemData),
 		Units = Trackers.units(data.UnitData),
+		Equipment = Trackers.equipment(data.EquipmentData),
 		Progress = Trackers.progress(data),
 		Stats = Trackers.stats(data),
 		Pity = Trackers.pity(data.BannerData),
